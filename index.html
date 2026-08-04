@@ -272,6 +272,8 @@ nav.tabs button.aktiv { color: var(--akzent); }
 .hilfetext { color: var(--leise); font-size: 13.5px; }
 .hilfetext code { background: var(--karte2); padding: 1px 5px; border-radius: 5px; }
 
+.tbedit { min-height: 46vh; font-size: 15px; line-height: 1.5; }
+
 </style>
 </head>
 <body>
@@ -1539,6 +1541,33 @@ function autoRefs(text, worte, vorhanden) {
   return { text, angelegt };
 }
 
+const TB_ABSCHNITTE = [
+  "Was habe ich heute gemacht:",
+  "Was habe ich heute gelernt:",
+  "Was habe ich produktives gemacht:",
+  "Was kann man verbessern:",
+];
+const TB_MORGEN = "Was nehme ich mir für morgen vor:";
+
+// Cans Vorlage: leere Abschnitte, die er ausfuellt. Wie aktionen.tagebuch_vorlage.
+function tagebuchVorlage(tag) {
+  const morgen = addDays(tag, 1);
+  const teile = ["[[Tagebuch]]", ""];
+  for (const k of TB_ABSCHNITTE) teile.push("#### " + k, "", "");
+  teile.push("#### " + TB_MORGEN + " [[" + punktDatum(morgen) + "]]", "", "");
+  return teile.join("\n");
+}
+
+// Schreibt den Eintrag komplett neu, wie aktionen.tagebuch_speichern.
+// Das ist gewollt: direkt in der Datei editieren, git sichert jeden Stand.
+function tagebuchSpeichern(text, vorhanden, worte) {
+  text = nl(text);
+  if (text.length > 200000) throw new Error("Eintrag zu lang");
+  const r1 = refsAufloesen(text, vorhanden);
+  const r2 = autoRefs(r1.text, worte, vorhanden);
+  return { content: rstripNl(r2.text) + "\n", angelegt: r1.angelegt.concat(r2.angelegt) };
+}
+
 // Legt den Eintrag an oder haengt an. Gibt {content, angelegt} zurueck.
 // altText null oder leer heisst: neue Datei mit Vorlage (ohne Commits).
 function tagebuchAnlegen(altText, text, tag, vorhanden, worte) {
@@ -1586,6 +1615,7 @@ if (typeof module !== "undefined") {
     SOZIAL_WERKZEUGE, parseSozial, sozialLog, sozialStufeSetzen,
     sozialReflexionSpeichern, sozialWoche, sozialBilanz, sozialWerkzeug,
     sozialBereitFuerMehr, stufenKuerzel, letzteZiele, refsAufloesen,
+    tagebuchVorlage, tagebuchSpeichern,
     parseSchlagworte, autoRefs, tagebuchAnlegen, titleCase, capitalize,
   };
 }
@@ -2069,8 +2099,15 @@ function renderKalender() {
 
 // ----------------------------------------------------------- Tagebuch
 
+let tbDirty = false;      // Nutzer tippt gerade im Editor
+let tbRenderTag = null;   // Tag, fuer den der Editor gerade gefuellt ist
+
 function renderTagebuch() {
   if (!tbTag) tbTag = heute();
+  // Waehrend Can tippt, nichts ueberschreiben (renderAlles laeuft auch
+  // nach Habit-Klicks und so weiter).
+  if (tbDirty && tbRenderTag && gleich(tbTag, tbRenderTag) && $("#tbedit")) return;
+
   const pfad = "Tagebuch/" + punktDatum(tbTag) + ".md";
   const vorhanden = tagebuchNamen.includes(punktDatum(tbTag) + ".md");
   const inhalt = ablage.has(pfad) ? text(pfad) : null;
@@ -2080,22 +2117,27 @@ function renderTagebuch() {
     "<span class=\"datum\">" + langDatum(tbTag) + "</span>" +
     "<button data-aktion=\"tb-tag\" data-schritt=\"1\"" + (gleich(tbTag, heute()) ? " disabled" : "") + ">›</button></div>");
 
-  b.push("<div class=\"karte\"><h3>Eintrag</h3>");
-  if (inhalt !== null && inhalt.trim()) {
-    b.push("<pre class=\"tbtext\">" + esc(nl(inhalt)) + "</pre>");
-  } else if (vorhanden && inhalt === null) {
-    b.push("<div class=\"leer\">Eintrag existiert, aber noch nicht geladen. <button class=\"knopf zweit\" data-aktion=\"tb-laden\" style=\"margin-top:8px\">Laden</button></div>");
+  if (vorhanden && inhalt === null) {
+    b.push("<div class=\"karte\"><div class=\"leer\">Eintrag existiert, aber noch nicht geladen.</div>" +
+      "<button class=\"knopf zweit\" data-aktion=\"tb-laden\" style=\"margin-top:8px\">Laden</button></div>");
   } else {
-    b.push("<div class=\"leer\">Noch kein Eintrag für diesen Tag.</div>");
+    b.push("<div class=\"karte\"><h3>Eintrag" +
+      (inhalt === null || !inhalt.trim() ? " <span class=\"zusatz\">noch leer</span>" : "") + "</h3>" +
+      "<textarea id=\"tbedit\" class=\"tbedit\" placeholder=\"Was war heute? [wort] wird zum Wikilink, Schlagworte verlinken sich von selbst.\">" +
+      esc(inhalt === null ? "" : nl(inhalt)) + "</textarea>" +
+      (inhalt === null || !inhalt.trim()
+        ? "<button class=\"knopf zweit\" data-aktion=\"tb-vorlage\" style=\"margin-bottom:9px\">Vorlage einfügen</button>"
+        : "") +
+      "<button class=\"knopf\" data-aktion=\"tb-voll-speichern\">Speichern</button>" +
+      "<div class=\"hilfetext\" style=\"margin-top:8px\">Du editierst direkt die Datei, wie am PC. " +
+      "Jeder Stand landet als Commit in git, nichts geht verloren.</div></div>");
   }
-  b.push("</div>");
-
-  b.push("<div class=\"karte\"><h3>Ergänzen</h3>" +
-    "<textarea id=\"tbtext\" placeholder=\"Was war heute? [wort] wird zum Wikilink, Schlagworte verlinken sich von selbst.\"></textarea>" +
-    "<button class=\"knopf\" data-aktion=\"tb-speichern\">Eintragen</button>" +
-    "<div class=\"hilfetext\" style=\"margin-top:8px\">Wird angehängt, nie überschrieben. Genau wie am PC.</div></div>");
 
   $("#blatt-tagebuch").innerHTML = b.join("");
+  tbRenderTag = tbTag;
+  tbDirty = false;
+  const ta = $("#tbedit");
+  if (ta) ta.addEventListener("input", () => { tbDirty = true; });
 }
 
 // ------------------------------------------------------------- Sozial
@@ -2405,22 +2447,31 @@ const AKTIONEN = {
       "Mobil: Termin verschoben"), "Termin verschoben auf " + VERSCHIEBEN[wann][0]);
   },
 
-  "tb-tag": (el) => { tbTag = addDays(tbTag, parseInt(el.dataset.schritt, 10)); renderTagebuch(); },
+  "tb-tag": (el) => {
+    if (tbDirty && !confirm("Ungespeicherte Änderungen verwerfen?")) return;
+    tbDirty = false;
+    tbTag = addDays(tbTag, parseInt(el.dataset.schritt, 10));
+    renderTagebuch();
+  },
   "tb-laden": async () => {
     await mitToast(() => ladeDatei("Tagebuch/" + punktDatum(tbTag) + ".md"));
   },
-  "tb-speichern": async () => {
-    const eingabe = $("#tbtext").value.trim();
-    if (!eingabe) { toast("Eintrag ist leer", true); return; }
+  "tb-vorlage": () => {
+    const ta = $("#tbedit");
+    if (ta && !ta.value.trim()) { ta.value = tagebuchVorlage(tbTag); tbDirty = true; }
+  },
+  "tb-voll-speichern": async () => {
+    const eingabe = $("#tbedit").value;
+    if (!eingabe.trim()) { toast("Eintrag ist leer, so speichere ich nicht", true); return; }
     const tag = tbTag;
     const pfad = "Tagebuch/" + punktDatum(tag) + ".md";
     await mitToast(async () => {
       const vorhanden = await alleNotizNamen();
       const worte = parseSchlagworte(text("Dashboard/Schlagworte.md"));
       const stubs = [];
-      await transaktion([pfad], (texte) => {
+      await transaktion([pfad], () => {
         const kopie = new Map(vorhanden);
-        const r = tagebuchAnlegen(texte[pfad], eingabe, tag, kopie, worte);
+        const r = tagebuchSpeichern(eingabe, kopie, worte);
         stubs.length = 0;
         stubs.push.apply(stubs, r.angelegt);
         return { [pfad]: r.content };
@@ -2434,9 +2485,9 @@ const AKTIONEN = {
         tagebuchNamen.sort();
       }
       cacheSpeichern();
-      $("#tbtext").value = "";
+      tbDirty = false;
       return stubs;
-    }, "Eingetragen");
+    }, "Gespeichert");
   },
 
   "sozial-log": async () => {
