@@ -1696,7 +1696,10 @@ function apiPfad(pfad) {
 
 async function api(weg, opts) {
   if (!cfg.token) { const e = new Error("Kein Token hinterlegt"); e.keinToken = true; throw e; }
+  // cache no-store: GitHub schickt private Antworten mit max-age 60, sonst
+  // zeigt ein Aktualisieren direkt nach dem Schreiben wieder den alten Stand.
   const r = await fetch(API + "/repos/" + cfg.owner + "/" + cfg.repo + weg, Object.assign({
+    cache: "no-store",
     headers: {
       "Authorization": "Bearer " + cfg.token,
       "Accept": "application/vnd.github+json",
