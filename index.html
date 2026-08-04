@@ -1671,6 +1671,8 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
+const VERSION = 3;
+
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
 
@@ -1895,9 +1897,9 @@ let tbTag = null;      // Tagebuch-Datum
 
 function renderAlles() {
   $("#kopfdatum").textContent = langDatum(heute());
-  $("#standzeile").textContent = stand
+  $("#standzeile").textContent = (stand
     ? "Stand " + new Date(stand).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
-    : "Noch nichts geladen";
+    : "Noch nichts geladen") + " · Version " + VERSION;
   renderHeute();
   renderKalender();
   renderTagebuch();
