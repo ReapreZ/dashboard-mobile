@@ -1,0 +1,2488 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Life Dashboard</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dashboard">
+<meta name="theme-color" content="#1f1d1a">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzFmMWQxYSIvPjxyZWN0IHg9IjYuNSIgeT0iNi41IiB3aWR0aD0iOC41IiBoZWlnaHQ9IjguNSIgcng9IjIuMiIgZmlsbD0iI2I0NTMwOSIvPjxyZWN0IHg9IjE3LjUiIHk9IjYuNSIgd2lkdGg9IjguNSIgaGVpZ2h0PSI4LjUiIHJ4PSIyLjIiIGZpbGw9IiM1NzUzNGUiLz48cmVjdCB4PSI2LjUiIHk9IjE3LjUiIHdpZHRoPSI4LjUiIGhlaWdodD0iOC41IiByeD0iMi4yIiBmaWxsPSIjNTc1MzRlIi8+PHBhdGggZD0iTTE4IDIyLjJsMi40IDIuNCA1LTUuMiIgc3Ryb2tlPSIjYjQ1MzA5IiBzdHJva2Utd2lkdGg9IjIuNiIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root {
+  --bg: #1f1d1a;
+  --karte: #292622;
+  --karte2: #322e28;
+  --rand: #3d382f;
+  --text: #e7e5e4;
+  --leise: #a8a29e;
+  --akzent: #d97706;
+  --akzent-dunkel: #b45309;
+  --ok: #65a30d;
+  --rot: #dc2626;
+  --radius: 14px;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; padding: 0; background: var(--bg); color: var(--text);
+  font-family: -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  font-size: 16px; line-height: 1.45;
+}
+body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+
+header {
+  position: sticky; top: 0; z-index: 20; background: rgba(31,29,26,.92);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid var(--rand);
+}
+header .titel { font-weight: 700; font-size: 17px; }
+header .datum { color: var(--leise); font-size: 13px; margin-top: 1px; }
+header .frei { flex: 1; }
+.kopfknopf {
+  background: var(--karte); border: 1px solid var(--rand); color: var(--text);
+  width: 38px; height: 38px; border-radius: 12px; font-size: 17px;
+  display: flex; align-items: center; justify-content: center;
+}
+.kopfknopf:active { background: var(--karte2); }
+.kopfknopf.dreht svg { animation: drehen 1s linear infinite; }
+@keyframes drehen { to { transform: rotate(360deg); } }
+
+main { padding: 14px 14px 8px; max-width: 640px; margin: 0 auto; }
+.blatt { display: none; }
+.blatt.aktiv { display: block; }
+
+.karte {
+  background: var(--karte); border: 1px solid var(--rand);
+  border-radius: var(--radius); padding: 14px; margin-bottom: 12px;
+}
+.karte h3 {
+  margin: 0 0 10px; font-size: 12px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--leise); font-weight: 600;
+}
+.karte h3 .zusatz { float: right; text-transform: none; letter-spacing: 0; font-weight: 500; }
+
+.schichtzeile { display: flex; align-items: baseline; gap: 10px; }
+.schichtzeile .name { font-size: 19px; font-weight: 700; }
+.schichtzeile .zeit { color: var(--leise); }
+.schichtzeile .morgen { margin-left: auto; color: var(--leise); font-size: 13px; text-align: right; }
+
+.todo {
+  display: flex; align-items: flex-start; gap: 10px; padding: 9px 2px;
+  border-top: 1px solid var(--rand);
+}
+.todo:first-of-type { border-top: 0; }
+.todo .kreis {
+  flex: 0 0 auto; width: 24px; height: 24px; margin-top: 1px;
+  border: 2px solid var(--leise); border-radius: 50%; background: none;
+}
+.todo .kreis:active { border-color: var(--akzent); }
+.todo .inhalt { flex: 1; min-width: 0; }
+.todo .text { word-wrap: break-word; overflow-wrap: anywhere; }
+.todo .text a { color: var(--akzent); text-decoration: none; }
+.todo .meta { font-size: 12.5px; color: var(--leise); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+.todo .meta .ueberfaellig { color: #f87171; }
+.todo .meta .heutefaellig { color: var(--akzent); }
+.prio { font-weight: 700; }
+.prio.hoch { color: #f87171; }
+.prio.mittel { color: var(--akzent); }
+.prio.niedrig { color: var(--leise); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  border: 1px solid var(--rand); background: var(--karte2); color: var(--text);
+  border-radius: 999px; padding: 7px 13px; font-size: 14.5px; line-height: 1.2;
+}
+.chip.an { background: var(--akzent-dunkel); border-color: var(--akzent-dunkel); color: #fff; }
+.chip.leise { opacity: .55; }
+.chip .strk { font-size: 11.5px; opacity: .8; margin-left: 4px; }
+.leisezeile { margin-top: 10px; color: var(--leise); font-size: 12.5px; }
+.leisezeile .chips { margin-top: 6px; }
+
+.wasser { display: flex; align-items: center; gap: 12px; margin-top: 12px; border-top: 1px solid var(--rand); padding-top: 12px; }
+.wasser .stand { font-size: 15px; }
+.wasser .glaeser { color: var(--akzent); letter-spacing: 2px; font-size: 15px; }
+.wasser button {
+  margin-left: 0; width: 40px; height: 40px; border-radius: 12px;
+  border: 1px solid var(--rand); background: var(--karte2); color: var(--text); font-size: 20px;
+}
+.wasser .plus { margin-left: auto; }
+
+.termin { display: flex; gap: 10px; padding: 8px 2px; border-top: 1px solid var(--rand); align-items: baseline; }
+.termin:first-of-type { border-top: 0; }
+.termin .wann { flex: 0 0 74px; color: var(--leise); font-size: 13.5px; }
+.termin .titel { flex: 1; overflow-wrap: anywhere; }
+.termin .zeit { color: var(--akzent); font-size: 13.5px; }
+
+.liste-details { border-top: 1px solid var(--rand); padding: 4px 0; }
+.liste-details:first-of-type { border-top: 0; }
+.liste-details summary {
+  list-style: none; display: flex; align-items: center; gap: 8px;
+  padding: 8px 2px; font-weight: 600; cursor: pointer;
+}
+.liste-details summary::-webkit-details-marker { display: none; }
+.liste-details summary .anzahl { margin-left: auto; color: var(--leise); font-weight: 400; font-size: 13px; }
+.liste-details summary .pfeil { transition: transform .15s; color: var(--leise); font-size: 12px; }
+.liste-details[open] summary .pfeil { transform: rotate(90deg); }
+.sektionstitel { color: var(--leise); font-size: 12.5px; margin: 8px 0 0; text-transform: uppercase; letter-spacing: .06em; }
+
+.leer { color: var(--leise); font-size: 14px; padding: 4px 0; }
+
+/* Kalender */
+.kalkopf { display: flex; align-items: center; margin-bottom: 10px; }
+.kalkopf .monat { flex: 1; text-align: center; font-weight: 700; font-size: 17px; }
+.kalkopf button {
+  width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--rand);
+  background: var(--karte); color: var(--text); font-size: 17px;
+}
+.kalgitter { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.kalgitter .wt { text-align: center; color: var(--leise); font-size: 11.5px; padding: 3px 0; }
+.kaltag {
+  aspect-ratio: 1; border-radius: 10px; background: var(--karte);
+  border: 1px solid var(--rand); position: relative; padding: 3px;
+  display: flex; flex-direction: column; align-items: center; font-size: 13.5px;
+}
+.kaltag.fremd { opacity: .32; }
+.kaltag.heute { border-color: var(--akzent); }
+.kaltag.gewaehlt { background: var(--akzent-dunkel); border-color: var(--akzent-dunkel); color: #fff; }
+.kaltag .schichtk { font-size: 9.5px; color: var(--leise); line-height: 1; }
+.kaltag.gewaehlt .schichtk { color: #fde68a; }
+.kaltag .punkte { display: flex; gap: 2px; margin-top: auto; margin-bottom: 2px; }
+.kaltag .punkt { width: 5px; height: 5px; border-radius: 50%; background: var(--akzent); }
+.kaltag .punkt.fael { background: #f87171; }
+
+/* Tagebuch */
+.tbtext {
+  white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px;
+  font-family: inherit; margin: 0; color: var(--text);
+}
+.tbnav { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.tbnav .datum { flex: 1; text-align: center; font-weight: 700; }
+.tbnav button { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--rand); background: var(--karte); color: var(--text); font-size: 16px; }
+
+/* Formulare */
+textarea, input[type=text], input[type=password], input[type=date], input[type=time], select {
+  width: 100%; background: var(--karte2); color: var(--text);
+  border: 1px solid var(--rand); border-radius: 10px; padding: 11px 12px;
+  font-size: 16px; font-family: inherit; margin-bottom: 9px;
+  -webkit-appearance: none; appearance: none;
+}
+textarea { min-height: 92px; resize: vertical; }
+label.feld { display: block; font-size: 12.5px; color: var(--leise); margin-bottom: 3px; }
+.knopf {
+  display: inline-block; width: 100%; padding: 13px; border-radius: 12px;
+  border: 0; background: var(--akzent-dunkel); color: #fff; font-size: 16px;
+  font-weight: 600; text-align: center;
+}
+.knopf:active { background: var(--akzent); }
+.knopf.zweit { background: var(--karte2); color: var(--text); border: 1px solid var(--rand); }
+.knopf[disabled] { opacity: .5; }
+.zeile2 { display: flex; gap: 8px; }
+.zeile2 > * { flex: 1; }
+.check { display: flex; align-items: center; gap: 9px; margin: 4px 0 10px; font-size: 15px; }
+.check input { width: 20px; height: 20px; accent-color: var(--akzent); }
+
+/* Sozial */
+.balken { height: 8px; background: var(--karte2); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+.balken .voll { height: 100%; background: var(--akzent); border-radius: 999px; }
+.gross { font-size: 22px; font-weight: 700; }
+.bilanzzeile { display: flex; gap: 14px; }
+.bilanzzeile .wert { text-align: center; flex: 1; }
+.bilanzzeile .wert .zahl { font-size: 21px; font-weight: 700; }
+.bilanzzeile .wert .label { font-size: 12px; color: var(--leise); }
+.stufenzeile { display: flex; gap: 8px; padding: 8px 2px; border-top: 1px solid var(--rand); align-items: baseline; }
+.stufenzeile .nr { color: var(--leise); flex: 0 0 20px; }
+.stufenzeile.aktivstufe .nr, .stufenzeile.aktivstufe .uebung { color: var(--akzent); font-weight: 600; }
+.stufenzeile .waehlen { margin-left: auto; background: none; border: 0; color: var(--leise); font-size: 13px; padding: 0 4px; }
+.logzeile { padding: 7px 2px; border-top: 1px solid var(--rand); font-size: 14px; }
+.logzeile:first-of-type { border-top: 0; }
+.logzeile .kopf { display: flex; gap: 8px; }
+.logzeile .kopf .datum { color: var(--leise); }
+.logzeile .kopf .zahlen { margin-left: auto; color: var(--akzent); }
+.logzeile .notiz { color: var(--leise); font-size: 13px; }
+.hinweis { background: var(--karte2); border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-top: 10px; }
+.hinweis.gruen { border-left: 3px solid var(--ok); }
+.werk .tu { margin: 6px 0; }
+.werk .warum { color: var(--leise); font-size: 14px; }
+.werk .quelle { color: var(--leise); font-size: 12px; margin-top: 6px; font-style: italic; }
+
+/* Tabbar */
+nav.tabs {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+  display: flex; background: rgba(31,29,26,.95);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--rand);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+}
+nav.tabs button {
+  flex: 1; background: none; border: 0; color: var(--leise);
+  font-size: 11px; padding: 5px 0 3px; border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+nav.tabs button svg { width: 23px; height: 23px; }
+nav.tabs button.aktiv { color: var(--akzent); }
+
+/* FAB */
+.fab {
+  position: fixed; right: 18px; bottom: calc(86px + env(safe-area-inset-bottom));
+  width: 56px; height: 56px; border-radius: 18px; border: 0; z-index: 25;
+  background: var(--akzent-dunkel); color: #fff; font-size: 28px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.4); display: none;
+  align-items: center; justify-content: center; line-height: 1;
+}
+.fab.sichtbar { display: flex; }
+
+/* Sheets und Toast */
+.schleier {
+  position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 40;
+  display: none; align-items: flex-end;
+}
+.schleier.offen { display: flex; }
+.sheet {
+  background: var(--karte); width: 100%; border-radius: 18px 18px 0 0;
+  padding: 16px 16px calc(18px + env(safe-area-inset-bottom));
+  max-height: 86vh; overflow-y: auto;
+}
+.sheet h2 { margin: 0 0 12px; font-size: 17px; }
+.sheet .griff { width: 40px; height: 4px; border-radius: 2px; background: var(--rand); margin: 0 auto 12px; }
+.sheet .aktion {
+  display: block; width: 100%; text-align: left; padding: 13px 12px;
+  background: var(--karte2); border: 1px solid var(--rand); color: var(--text);
+  border-radius: 12px; margin-bottom: 8px; font-size: 15.5px;
+}
+.sheet .aktion.rot { color: #f87171; }
+.sheet .aktion small { color: var(--leise); display: block; font-size: 12.5px; }
+
+#toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  top: calc(14px + env(safe-area-inset-top)); z-index: 60;
+  background: #0f0e0c; color: var(--text); border: 1px solid var(--rand);
+  padding: 10px 16px; border-radius: 12px; font-size: 14px; max-width: 88vw;
+  display: none; box-shadow: 0 4px 14px rgba(0,0,0,.5);
+}
+#toast.rot { border-color: var(--rot); }
+#toast.sichtbar { display: block; }
+
+.standzeile { text-align: center; color: var(--leise); font-size: 12px; margin: 4px 0 10px; }
+.hilfetext { color: var(--leise); font-size: 13.5px; }
+.hilfetext code { background: var(--karte2); padding: 1px 5px; border-radius: 5px; }
+
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="titel">Life Dashboard</div>
+    <div class="datum" id="kopfdatum"></div>
+  </div>
+  <div class="frei"></div>
+  <button class="kopfknopf" id="syncknopf" data-aktion="sync" aria-label="Aktualisieren">
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+  </button>
+  <button class="kopfknopf" data-aktion="einstellungen" aria-label="Einstellungen">
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</header>
+<main>
+  <div class="standzeile" id="standzeile"></div>
+  <div class="blatt aktiv" id="blatt-heute"></div>
+  <div class="blatt" id="blatt-kalender"></div>
+  <div class="blatt" id="blatt-tagebuch"></div>
+  <div class="blatt" id="blatt-sozial"></div>
+</main>
+<button class="fab sichtbar" id="fab" data-aktion="fab" aria-label="Neues Todo">+</button>
+<nav class="tabs">
+  <button data-aktion="tab" data-tab="heute" class="aktiv">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    Heute
+  </button>
+  <button data-aktion="tab" data-tab="kalender">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Kalender
+  </button>
+  <button data-aktion="tab" data-tab="tagebuch">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    Tagebuch
+  </button>
+  <button data-aktion="tab" data-tab="sozial">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    Sozial
+  </button>
+</nav>
+<div class="schleier" id="schleier"><div class="sheet" id="sheetinhalt"></div></div>
+<div id="toast"></div>
+<script>
+// ===CORE-START===
+// Dashboard Mobile, Kernlogik. Portiert aus generate.py und aktionen.py.
+// Die Schreibformate muessen exakt denen des PC-Dashboards entsprechen,
+// deshalb ist jede Funktion eine moeglichst woertliche Uebersetzung.
+"use strict";
+
+const WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+const WOCHENTAG_LANG = ["montags", "dienstags", "mittwochs", "donnerstags",
+  "freitags", "samstags", "sonntags"];
+
+const HABIT_LABEL = {
+  gym: "Gym", protein: "Protein", kalorien: "Kalorien", supps: "Supplemente",
+  lesen: "Lesen", spazieren: "Bewegung", coden: "Coden", haushalt: "Haushalt",
+  raus: "Raus", tagebuch: "Tagebuch", schlaf: "Schlaf über 7h",
+  abruf: "Abrufübung", sozial: "Soziale Übung",
+};
+
+const PRIO_RANK = { hoch: 0, mittel: 1, niedrig: 2, "": 3 };
+const PRIO_LABEL = { hoch: "Hoch", mittel: "Mittel", niedrig: "Niedrig", "": "" };
+
+// ------------------------------------------------------------- Datum
+// Daten sind Date-Objekte auf Mitternacht UTC, damit Differenzen nie
+// an der Sommerzeit scheitern. heute() kommt von der lokalen Uhr.
+
+function schaltjahr(j) { return j % 4 === 0 && (j % 100 !== 0 || j % 400 === 0); }
+function monatstage(j, m) {
+  return [31, schaltjahr(j) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+}
+function makeDate(j, m, t) {
+  if (m < 1 || m > 12 || t < 1 || t > monatstage(j, m)) return null;
+  return new Date(Date.UTC(j, m - 1, t));
+}
+function heute() {
+  const n = new Date();
+  return new Date(Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()));
+}
+function iso(d) {
+  const p = (x) => String(x).padStart(2, "0");
+  return d.getUTCFullYear() + "-" + p(d.getUTCMonth() + 1) + "-" + p(d.getUTCDate());
+}
+function punktDatum(d) {
+  const p = (x) => String(x).padStart(2, "0");
+  return d.getUTCFullYear() + "." + p(d.getUTCMonth() + 1) + "." + p(d.getUTCDate());
+}
+function addDays(d, n) { return new Date(d.getTime() + n * 86400000); }
+function weekday(d) { return (d.getUTCDay() + 6) % 7; } // Mo=0
+function tageDiff(a, b) { return Math.round((a.getTime() - b.getTime()) / 86400000); }
+function gleich(a, b) { return a && b && a.getTime() === b.getTime(); }
+
+function parseDate(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return makeDate(+m[1], +m[2], +m[3]);
+  m = s.match(/^(\d{4})\.(\d{1,2})\.(\d{1,2})$/);
+  if (m) return makeDate(+m[1], +m[2], +m[3]);
+  m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) return makeDate(+m[3], +m[2], +m[1]);
+  return null;
+}
+function parseDateIso(s) {
+  const m = String(s || "").trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  return m ? makeDate(+m[1], +m[2], +m[3]) : null;
+}
+
+function plusMonat(d, n) {
+  n = n === undefined ? 1 : n;
+  const m = d.getUTCMonth() + n;
+  const jahr = d.getUTCFullYear() + Math.floor(m / 12);
+  const monat = ((m % 12) + 12) % 12 + 1;
+  const tage = monatstage(jahr, monat);
+  return makeDate(jahr, monat, Math.min(d.getUTCDate(), tage));
+}
+function plusJahr(d, n) {
+  n = n === undefined ? 1 : n;
+  const j = d.getUTCFullYear() + n;
+  return makeDate(j, d.getUTCMonth() + 1, d.getUTCDate())
+    || makeDate(j, d.getUTCMonth() + 1, 28); // 29. Februar
+}
+
+// ISO-Kalenderwoche wie Python date.isocalendar(): [jahr, woche]
+function isoWoche(d) {
+  const do4 = addDays(d, 3 - weekday(d)); // Donnerstag der Woche
+  const jahr = do4.getUTCFullYear();
+  const jan1 = makeDate(jahr, 1, 1);
+  const woche = Math.floor(tageDiff(do4, jan1) / 7) + 1;
+  return [jahr, woche];
+}
+
+function tageHer(d) {
+  if (!d) return "";
+  const n = tageDiff(heute(), d);
+  if (n === 0) return "heute";
+  if (n === 1) return "gestern";
+  if (n < 0) return "in " + Math.abs(n) + " Tagen";
+  return "vor " + n + " Tagen";
+}
+
+function faelligText(d) {
+  if (!d) return "";
+  const n = tageDiff(d, heute());
+  if (n < 0) return Math.abs(n) + " Tage überfällig";
+  if (n === 0) return "heute fällig";
+  if (n === 1) return "morgen";
+  return "in " + n + " Tagen";
+}
+
+const WIEDER = {
+  morgen: ["morgen", () => addDays(heute(), 1)],
+  woche: ["nächste Woche", () => addDays(heute(), 7)],
+  monat: ["nächsten Monat", () => plusMonat(heute())],
+  jahr: ["nächstes Jahr", () => plusJahr(heute())],
+};
+const VERSCHIEBEN = {
+  morgen: ["morgen", () => addDays(heute(), 1)],
+  woche: ["nächste Woche", () => addDays(heute(), 7)],
+};
+
+// ------------------------------------------------------- Text-Hilfen
+
+function stripChars(s, chars) {
+  let a = 0, b = s.length;
+  while (a < b && chars.includes(s[a])) a++;
+  while (b > a && chars.includes(s[b - 1])) b--;
+  return s.slice(a, b);
+}
+function rstripNl(s) { return s.replace(/\n+$/, ""); }
+function escapeRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+function capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s; }
+function titleCase(s) {
+  return s.replace(/[A-Za-zÀ-ÿÄÖÜäöüß]+/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+}
+function joinZeilen(zeilen) { return rstripNl(zeilen.join("\n")) + "\n"; }
+
+// Python liest Dateien mit Universal Newlines, \r\n wird zu \n.
+// Alle Kernfunktionen normalisieren ihre Texteingabe genauso.
+function nl(text) { return String(text == null ? "" : text).replace(/\r\n?/g, "\n"); }
+
+// Wie Python splitlines(): der Umbruch am Dateiende erzeugt keine leere
+// Schlusszeile. Alle Schreibfunktionen arbeiten auf diesen Zeilen.
+function zeilenAus(text) {
+  const z = nl(text).split("\n");
+  if (z.length && z[z.length - 1] === "") z.pop();
+  return z;
+}
+
+// Zeilen ohne Codebloecke, Kommentare, Ueberschriften und Tabellen.
+// Woertlich aus generate.datenzeilen, gleiche Grenzen, gleiche Luecken.
+function datenzeilen(text) {
+  const raus = [];
+  let fence = false;
+  for (const line of nl(text).split("\n")) {
+    const s = line.trim();
+    if (s.startsWith("```")) { fence = !fence; continue; }
+    if (fence || !s) continue;
+    if (s.startsWith("#") || s.startsWith("<!--") || s.startsWith("|") || s.startsWith(">")) continue;
+    raus.push(line);
+  }
+  return raus;
+}
+
+// Konfigdatei als {Ueberschrift: [zeilen]}, ohne Codebloecke, mit
+// mehrzeiligen Kommentaren. Woertlich aus aktionen._abschnitte.
+function abschnitte(text) {
+  const raus = {};
+  let aktuell = null, fence = false, komm = false;
+  for (const zeile of nl(text).split("\n")) {
+    const s = zeile.trim();
+    if (s.startsWith("```")) { fence = !fence; continue; }
+    if (komm) { if (s.includes("-->")) komm = false; continue; }
+    if (s.startsWith("<!--")) { if (!s.includes("-->")) komm = true; continue; }
+    if (fence || !s) continue;
+    if (s.startsWith("## ")) { aktuell = s.slice(3).trim(); raus[aktuell] = []; continue; }
+    if (s.startsWith("#") || s === "---") continue;
+    if (aktuell) raus[aktuell].push(s);
+  }
+  return raus;
+}
+
+// --------------------------------------------------------------- Todos
+
+const TODO_RE = /^\s*[-*]\s*\[([ xX])\]\s*(.+?)\s*$/;
+const TAG_RE = /#([A-Za-zÄÖÜäöüß0-9_-]+)/g;
+const DUE_RE = /@(\d{4}-\d{2}-\d{2})/;
+const DUE_RE_G = /@(\d{4}-\d{2}-\d{2})/g;
+const PRIO_RE = /!(hoch|mittel|niedrig)(?![\p{L}\p{N}_])/iu;
+const PRIO_RE_G = /!(hoch|mittel|niedrig)(?![\p{L}\p{N}_])/giu;
+const H2_RE = /^##\s+(.+?)\s*$/;
+
+function listenName(datei) {
+  const n = datei.replace(/\.md$/, "");
+  return n === "Todos" ? "Persönlich" : n.replace("Todos - ", "");
+}
+
+function todoClean(raw) {
+  let clean = raw.replace(TAG_RE, "").replace(DUE_RE_G, "").replace(PRIO_RE_G, "");
+  clean = clean.replace(/\s{2,}/g, " ");
+  return stripChars(clean, " -");
+}
+
+// dateien: [{datei, text}] in der Reihenfolge Todos.md zuerst, Rest sortiert.
+function parseTodos(dateien) {
+  const todos = [];
+  for (const { datei, text } of dateien) {
+    let sektion = "Ohne Sektion", fence = false;
+    for (const line of nl(text).split("\n")) {
+      const s = line.trim();
+      if (s.startsWith("```")) { fence = !fence; continue; }
+      if (fence) continue;
+      const h = line.match(H2_RE);
+      if (h) { sektion = h[1]; continue; }
+      const m = line.match(TODO_RE);
+      if (!m) continue;
+      const raw = m[2];
+      const tags = Array.from(raw.matchAll(TAG_RE), (x) => x[1].toLowerCase());
+      const dueM = raw.match(DUE_RE);
+      const prioM = raw.match(PRIO_RE);
+      const clean = todoClean(raw);
+      if (!clean) continue;
+      todos.push({
+        text: clean,
+        done: m[1].toLowerCase() === "x",
+        tags,
+        due: dueM ? parseDate(dueM[1]) : null,
+        prio: prioM ? prioM[1].toLowerCase() : "",
+        datei,
+        liste: listenName(datei),
+        sektion,
+        raw: line.replace(/\n+$/, ""),
+      });
+    }
+  }
+  return todos;
+}
+
+function todoListen(dateien) {
+  const listen = [];
+  for (const { datei, text } of dateien) {
+    const sektionen = [];
+    let fence = false;
+    for (const line of nl(text).split("\n")) {
+      if (line.trim().startsWith("```")) { fence = !fence; continue; }
+      if (fence) continue;
+      const h = line.match(H2_RE);
+      if (h) sektionen.push(h[1]);
+    }
+    if (sektionen.length) listen.push({ datei, liste: listenName(datei), sektionen });
+  }
+  return listen;
+}
+
+function todoZeile(text, prio, due) {
+  let line = "- [ ] " + text.trim();
+  if (due) line += " @" + due;
+  if (prio) line += " !" + prio;
+  return line;
+}
+
+// Haengt eine neue ## Sektion ans Ende. Gibt {text, name} zurueck.
+function sektionAnlegen(text, name) {
+  name = (name || "").trim();
+  if (!name) throw new Error("Leerer Kategoriename");
+  if (name.length > 60) throw new Error("Kategoriename zu lang");
+  if (name.includes("\n") || name.startsWith("#")) throw new Error("Ungueltiger Kategoriename");
+  let fence = false;
+  for (const line of nl(text).split("\n")) {
+    if (line.trim().startsWith("```")) { fence = !fence; continue; }
+    if (fence) continue;
+    const h = line.match(H2_RE);
+    if (h && h[1].toLowerCase() === name.toLowerCase()) return { text: nl(text), name: h[1] };
+  }
+  return { text: nl(text) + "\n## " + name + "\n", name };
+}
+
+// Haengt ein Todo unter die passende ## Sektion. Gibt {text, neu} zurueck.
+function todoAnlegen(text, sektion, todoText, prio, due) {
+  if (!todoText.trim()) throw new Error("Leeres Todo");
+  if (due && !parseDate(due)) throw new Error("Ungueltiges Datum: " + due);
+  if (prio && !["hoch", "mittel", "niedrig"].includes(prio)) throw new Error("Ungueltige Prioritaet: " + prio);
+  const zeilen = zeilenAus(text);
+  let start = null;
+  for (let i = 0; i < zeilen.length; i++) {
+    const h = zeilen[i].match(H2_RE);
+    if (h && h[1] === sektion) { start = i; break; }
+  }
+  if (start === null) throw new Error("Sektion gibt es nicht: " + sektion);
+  let ende = zeilen.length;
+  for (let i = start + 1; i < zeilen.length; i++) {
+    if (H2_RE.test(zeilen[i]) || zeilen[i].startsWith("# ")) { ende = i; break; }
+  }
+  let einfuegen = start + 1;
+  for (let i = start + 1; i < ende; i++) {
+    if (TODO_RE.test(zeilen[i])) einfuegen = i + 1;
+  }
+  const neu = todoZeile(todoText, prio, due);
+  if (einfuegen === start + 1) {
+    zeilen.splice(einfuegen, 0, "", neu);
+  } else {
+    zeilen.splice(einfuegen, 0, neu);
+  }
+  return { text: joinZeilen(zeilen), neu };
+}
+
+const ERLEDIGT_KOPF = "# Erledigt\n\nArchiv des Dashboards.\n\n---\n";
+
+// Nimmt die Zeile raus und haengt sie an Erledigt.md. Gibt
+// {todosText, erledigtText, neu, wiederText} zurueck. wiederText ist der
+// Todos-Text NACH dem Wiederanlegen (nur bei wieder gesetzt), sonst null.
+function todoArchivieren(todosText, erledigtText, datei, raw, wieder) {
+  if (wieder && !(wieder in WIEDER)) throw new Error("Unbekannte Wiedervorlage: " + wieder);
+  const zeilen = zeilenAus(todosText);
+  let treffer = null, sektion = "Ohne Sektion", letzteSektion = sektion;
+  for (let i = 0; i < zeilen.length; i++) {
+    const h = zeilen[i].match(H2_RE);
+    if (h) letzteSektion = h[1];
+    if (rstripNl(zeilen[i]) === raw) {
+      if (!TODO_RE.test(zeilen[i])) throw new Error("Keine Todo-Zeile");
+      treffer = i; sektion = letzteSektion; break;
+    }
+  }
+  if (treffer === null) throw new Error("Zeile nicht gefunden");
+
+  const m = zeilen[treffer].match(TODO_RE);
+  const text = m[2];
+  zeilen.splice(treffer, 1);
+  if (treffer > 0 && treffer < zeilen.length && !zeilen[treffer].trim()
+      && !zeilen[treffer - 1].trim()) {
+    zeilen.splice(treffer, 1);
+  }
+  let neuTodos = joinZeilen(zeilen);
+
+  const heuteStr = iso(heute());
+  const monat = heuteStr.slice(0, 7);
+  const neu = "- [x] " + text + " | " + listenName(datei) + " / " + sektion
+    + " | erledigt " + heuteStr;
+
+  let atext = erledigtText;
+  if (!atext) atext = ERLEDIGT_KOPF;
+  const azeilen = zeilenAus(atext);
+  const echt = [];
+  let fence = false;
+  for (let i = 0; i < azeilen.length; i++) {
+    if (azeilen[i].trim().startsWith("```")) { fence = !fence; continue; }
+    if (!fence) echt.push(i);
+  }
+  let kopf = null;
+  for (const i of echt) {
+    const h = azeilen[i].match(H2_RE);
+    if (h && h[1] === monat) { kopf = i; break; }
+  }
+  if (kopf === null) {
+    let anker = azeilen.length;
+    for (const i of echt) {
+      if (azeilen[i].trim() === "---") { anker = i + 1; break; }
+    }
+    azeilen.splice(anker, 0, "", "## " + monat, "", neu);
+  } else {
+    azeilen.splice(kopf + 2, 0, neu);
+  }
+  const neuErledigt = joinZeilen(azeilen);
+
+  let wiederText = null;
+  if (wieder) {
+    const neuesDatum = WIEDER[wieder][1]();
+    let basis = text.replace(DUE_RE_G, "");
+    basis = basis.replace(/\s{2,}/g, " ").trim();
+    const prioM = basis.match(PRIO_RE);
+    const prio = prioM ? prioM[1].toLowerCase() : "";
+    basis = basis.replace(PRIO_RE_G, "");
+    basis = basis.replace(/\s{2,}/g, " ").trim();
+    wiederText = todoAnlegen(neuTodos, sektion, basis, prio, iso(neuesDatum)).text;
+  }
+  return { todosText: neuTodos, erledigtText: neuErledigt, neu, wiederText };
+}
+
+// Setzt nur das Faelligkeitsdatum neu. Gibt {text, zeile} zurueck.
+function todoVerschieben(text, raw, wann) {
+  if (!(wann in VERSCHIEBEN)) throw new Error("Unbekanntes Ziel: " + wann);
+  const zeilen = zeilenAus(text);
+  const neues = iso(VERSCHIEBEN[wann][1]());
+  for (let i = 0; i < zeilen.length; i++) {
+    if (rstripNl(zeilen[i]) !== raw) continue;
+    const m = zeilen[i].match(TODO_RE);
+    if (!m) throw new Error("Keine Todo-Zeile");
+    let t = m[2];
+    if (DUE_RE.test(t)) {
+      t = t.replace(DUE_RE, "@" + neues);
+    } else {
+      const pm = t.match(PRIO_RE);
+      if (pm) {
+        t = t.slice(0, pm.index).replace(/\s+$/, "") + " @" + neues + " " + t.slice(pm.index);
+      } else {
+        t = t.replace(/\s+$/, "") + " @" + neues;
+      }
+    }
+    t = t.replace(/\s{2,}/g, " ").trim();
+    zeilen[i] = "- [" + m[1] + "] " + t;
+    return { text: joinZeilen(zeilen), zeile: zeilen[i] };
+  }
+  throw new Error("Zeile nicht gefunden");
+}
+
+function todoUmschalten(text, raw) {
+  const zeilen = zeilenAus(text);
+  for (let i = 0; i < zeilen.length; i++) {
+    if (rstripNl(zeilen[i]) === raw) {
+      const m = zeilen[i].match(TODO_RE);
+      if (!m) throw new Error("Keine Todo-Zeile");
+      const neu = m[1] === " " ? "x" : " ";
+      zeilen[i] = zeilen[i].replace(/\[[ xX]\]/, "[" + neu + "]");
+      return { text: joinZeilen(zeilen), zeile: zeilen[i] };
+    }
+  }
+  throw new Error("Zeile nicht gefunden");
+}
+
+// ------------------------------------------------------------ Erledigt
+
+const ARCHIV_RE = /^\s*[-*]\s*\[[xX]\]\s*(.+?)\s*\|\s*([^|]+?)\s*\|\s*erledigt\s+(\d{4}-\d{2}-\d{2})\s*$/;
+
+function parseErledigt(text) {
+  const eintraege = [];
+  let fence = false;
+  for (const line of nl(text).split("\n")) {
+    if (line.trim().startsWith("```")) { fence = !fence; continue; }
+    if (fence) continue;
+    const m = line.match(ARCHIV_RE);
+    if (!m) continue;
+    const d = parseDate(m[3]);
+    if (!d) continue;
+    eintraege.push({ text: todoClean(m[1]), herkunft: m[2].trim(), datum: d });
+  }
+  eintraege.sort((a, b) => b.datum - a.datum);
+  return eintraege;
+}
+
+// ------------------------------------------------------------ Kalender
+
+const KAL_RE = /^\s*(\d{4}-\d{2}-\d{2})(?:\s+(\d{1,2}:\d{2}))?\s*(\*)?\s*\|\s*([^|]+?)(?:\s*\|\s*(.+?))?\s*$/;
+
+function parseKalender(text) {
+  const termine = [];
+  for (const line of datenzeilen(text)) {
+    const m = line.match(KAL_RE);
+    if (!m) continue;
+    let d = parseDate(m[1]);
+    if (!d) continue;
+    if (m[3]) {
+      d = makeDate(heute().getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+      if (!d) continue;
+      if (d < heute()) d = makeDate(heute().getUTCFullYear() + 1, d.getUTCMonth() + 1, d.getUTCDate());
+      if (!d) continue;
+    }
+    termine.push({
+      datum: d, zeit: m[2] || "", titel: m[4].trim(),
+      notiz: (m[5] || "").trim(), jaehrlich: !!m[3],
+    });
+  }
+  termine.sort((a, b) => (a.datum - b.datum) || ((a.zeit || "99:99") < (b.zeit || "99:99") ? -1 : (a.zeit || "99:99") > (b.zeit || "99:99") ? 1 : 0));
+  return termine;
+}
+
+// Traegt einen Termin unter ## Termine ein. Gibt {text, neu} zurueck.
+function kalenderAnlegen(text, datum, titel, zeit, notiz) {
+  const d = typeof datum === "string" ? parseDate(datum) : datum;
+  if (!d) throw new Error("Ungueltiges Datum: " + datum);
+  titel = (titel || "").trim().replace(/\|/g, "/");
+  if (!titel) throw new Error("Leerer Termin");
+  if (zeit) {
+    const m = zeit.match(/^(\d{1,2}):(\d{2})$/);
+    if (!m || +m[1] > 23 || +m[2] > 59) throw new Error("Ungueltige Zeit: " + zeit);
+  }
+  let neu = iso(d);
+  if (zeit) neu += " " + zeit;
+  neu += " | " + titel;
+  if (notiz) neu += " | " + notiz.trim().replace(/\|/g, "/");
+
+  const zeilen = zeilenAus(text);
+  if (zeilen.includes(neu)) return { text: joinZeilen(zeilen), neu, unveraendert: true };
+
+  let start = null, fence = false;
+  for (let i = 0; i < zeilen.length; i++) {
+    if (zeilen[i].trim().startsWith("```")) { fence = !fence; continue; }
+    if (fence) continue;
+    const h = zeilen[i].match(H2_RE);
+    if (h && h[1] === "Termine") { start = i; break; }
+  }
+  if (start === null) {
+    const z2 = zeilen.concat(["", "## Termine", "", neu]);
+    return { text: joinZeilen(z2), neu };
+  }
+  let ende = zeilen.length;
+  for (let i = start + 1; i < zeilen.length; i++) {
+    if (H2_RE.test(zeilen[i]) || zeilen[i].startsWith("# ")) { ende = i; break; }
+  }
+  let einfuegen = null, letzte = start + 1;
+  for (let i = start + 1; i < ende; i++) {
+    const m = zeilen[i].match(KAL_RE);
+    if (!m) continue;
+    letzte = i + 1;
+    const vorhanden = parseDate(m[1]);
+    if (vorhanden && vorhanden > d && einfuegen === null) einfuegen = i;
+  }
+  if (einfuegen === null) {
+    einfuegen = letzte;
+    if (einfuegen === start + 1) {
+      zeilen.splice(einfuegen, 0, "");
+      einfuegen += 1;
+    }
+  }
+  zeilen.splice(einfuegen, 0, neu);
+  return { text: joinZeilen(zeilen), neu };
+}
+
+function terminFinden(text, datum, titel) {
+  const zeilen = zeilenAus(text);
+  const d = typeof datum === "string" ? parseDate(datum) : datum;
+  let fence = false;
+  for (let i = 0; i < zeilen.length; i++) {
+    if (zeilen[i].trim().startsWith("```")) { fence = !fence; continue; }
+    if (fence) continue;
+    const m = zeilen[i].match(KAL_RE);
+    if (m && gleich(parseDate(m[1]), d) && m[4].trim() === titel.trim()) {
+      return { zeilen, i, m };
+    }
+  }
+  return { zeilen, i: null, m: null };
+}
+
+function terminLoeschen(text, datum, titel) {
+  const { zeilen, i } = terminFinden(text, datum, titel);
+  if (i === null) throw new Error("Termin nicht gefunden");
+  const weg = zeilen.splice(i, 1)[0];
+  return { text: joinZeilen(zeilen), weg };
+}
+
+function terminVerschieben(text, datum, titel, wann) {
+  if (!(wann in VERSCHIEBEN)) throw new Error("Unbekanntes Ziel: " + wann);
+  const { zeilen, i, m } = terminFinden(text, datum, titel);
+  if (i === null) throw new Error("Termin nicht gefunden");
+  const zeit = m[2] || "", notiz = m[5] || "";
+  zeilen.splice(i, 1);
+  const zwischen = joinZeilen(zeilen);
+  return kalenderAnlegen(zwischen, iso(VERSCHIEBEN[wann][1]()), titel, zeit, notiz);
+}
+
+// -------------------------------------------------------------- Habits
+
+const HABIT_RE = /^\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(.+?)\s*$/;
+
+function parseHabits(text) {
+  const log = {};
+  for (const line of datenzeilen(text)) {
+    const m = line.match(HABIT_RE);
+    if (!m) continue;
+    const d = parseDate(m[1]);
+    if (!d) continue;
+    log[iso(d)] = m[2].split(/[\s,]+/).filter(Boolean).map((h) => h.toLowerCase());
+  }
+  return log;
+}
+
+function streak(log, habit) {
+  let n = 0, d = heute();
+  if (!(log[iso(d)] || []).includes(habit)) d = addDays(d, -1);
+  while ((log[iso(d)] || []).includes(habit)) { n += 1; d = addDays(d, -1); }
+  return n;
+}
+
+// Setzt oder entfernt ein Habit fuer den Tag. Gibt {text, aktuell} zurueck.
+function habitSetzen(text, habit, an, tagIso) {
+  habit = (habit || "").trim().toLowerCase();
+  if (!/^[a-zäöüß0-9_-]{1,24}$/.test(habit)) throw new Error("Ungueltiges Habit: " + habit);
+  const zeilen = zeilenAus(text);
+  const datum = tagIso || iso(heute());
+  let fence = false, treffer = null;
+  for (let i = 0; i < zeilen.length; i++) {
+    if (zeilen[i].trim().startsWith("```")) { fence = !fence; continue; }
+    if (fence) continue;
+    const m = zeilen[i].match(HABIT_RE);
+    if (m && m[1] === datum) { treffer = i; break; }
+  }
+  let aktuell = [];
+  if (treffer !== null) {
+    aktuell = zeilen[treffer].match(HABIT_RE)[2].split(/[\s,]+/).filter(Boolean);
+  }
+  if (an && !aktuell.includes(habit)) aktuell.push(habit);
+  else if (!an && aktuell.includes(habit)) aktuell.splice(aktuell.indexOf(habit), 1);
+
+  const neu = datum + " | " + aktuell.join(" ");
+  if (treffer !== null) {
+    if (aktuell.length) zeilen[treffer] = neu;
+    else zeilen.splice(treffer, 1);
+  } else if (aktuell.length) {
+    zeilen.push(neu);
+  }
+  return { text: joinZeilen(zeilen), aktuell };
+}
+
+// ----------------------------------------------------------- Schichten
+
+function parseSchichten(text) {
+  const ab = abschnitte(text);
+  if (!Object.keys(ab).length) return null;
+
+  const arten = {};
+  for (const z of ab["Definition"] || []) {
+    const teile = z.split("|").map((x) => x.trim());
+    if (teile.length < 3) continue;
+    const kuerzel = teile[0].toLowerCase();
+    if (!/^[a-z0-9_-]{1,16}$/.test(kuerzel)) continue;
+    arten[kuerzel] = {
+      von: teile[1], bis: teile[2],
+      name: teile.length > 3 ? teile[3] : titleCase(kuerzel),
+    };
+  }
+  if (!Object.keys(arten).length) return null;
+
+  const rotation = [];
+  for (const z of ab["Rotation"] || []) {
+    for (const x of z.split(/\s+/)) {
+      if (x.toLowerCase() in arten) rotation.push(x.toLowerCase());
+    }
+  }
+  if (!rotation.length) return null;
+
+  let anker = null;
+  for (const z of ab["Anker"] || []) {
+    const teile = z.split("|").map((x) => x.trim());
+    if (teile.length !== 2) continue;
+    const d = parseDateIso(teile[0]);
+    if (d && rotation.includes(teile[1].toLowerCase())) {
+      anker = { montag: addDays(d, -weekday(d)), schicht: teile[1].toLowerCase() };
+      break;
+    }
+  }
+  if (!anker) return null;
+
+  const tage = new Set();
+  for (const z of ab["Arbeitstage"] || []) {
+    const teile = z.replace(/,/g, " ").split(/\s+/).filter(Boolean);
+    if (!teile.length || !teile.every((x) => WOCHENTAGE.includes(capitalize(x)))) continue;
+    for (const x of teile) tage.add(WOCHENTAGE.indexOf(capitalize(x)));
+  }
+  if (!tage.size) [0, 1, 2, 3, 4].forEach((t) => tage.add(t));
+
+  const ausnahmen = {};
+  for (const z of ab["Ausnahmen"] || []) {
+    const teile = z.split("|").map((x) => x.trim());
+    if (teile.length !== 2) continue;
+    const d = parseDateIso(teile[0]);
+    if (d && (teile[1].toLowerCase() in arten || teile[1].toLowerCase() === "frei")) {
+      ausnahmen[iso(d)] = teile[1].toLowerCase();
+    }
+  }
+  return { arten, rotation, anker, tage, ausnahmen };
+}
+
+function schichtAm(tag, cfg) {
+  if (!cfg) return null;
+  const key = iso(tag);
+  if (key in cfg.ausnahmen) {
+    const k = cfg.ausnahmen[key];
+    if (k === "frei") return null;
+    return Object.assign({}, cfg.arten[k], { kuerzel: k });
+  }
+  if (!cfg.tage.has(weekday(tag))) return null;
+  const montag = addDays(tag, -weekday(tag));
+  const wochen = Math.floor(tageDiff(montag, cfg.anker.montag) / 7);
+  const start = cfg.rotation.indexOf(cfg.anker.schicht);
+  const n = cfg.rotation.length;
+  const k = cfg.rotation[(((start + wochen) % n) + n) % n];
+  return Object.assign({}, cfg.arten[k], { kuerzel: k });
+}
+
+// ---------------------------------------------------------- Gesundheit
+
+const GES_LOG_RE = /^\s*(\d{4}-\d{2}-\d{2})\s*\|(.*)$/;
+
+function gesFelderLesen(zeile) {
+  const felder = {};
+  for (const teil of zeile.split("|").slice(1)) {
+    const toks = teil.split(/\s+/).filter(Boolean);
+    if (!toks.length) continue;
+    const k = toks[0].toLowerCase();
+    const v = toks.slice(1).join(" ");
+    if (k === "supp") felder.supp = v.split(/[\s,]+/).filter(Boolean);
+    else if (["gewicht", "protein", "wasser"].includes(k)) felder[k] = v;
+  }
+  return felder;
+}
+
+function gesZeileBauen(datum, felder) {
+  const teile = [datum];
+  for (const k of ["gewicht", "protein", "wasser"]) {
+    if (felder[k]) teile.push(k + " " + felder[k]);
+  }
+  if (felder.supp && felder.supp.length) teile.push("supp " + felder.supp.join(","));
+  return teile.join(" | ");
+}
+
+function gesTagzeile(text, tagIso) {
+  const zeilen = zeilenAus(text);
+  let logI = null;
+  for (let i = 0; i < zeilen.length; i++) {
+    if (zeilen[i].trim().toLowerCase() === "## log") { logI = i; break; }
+  }
+  if (logI === null) {
+    if (zeilen.length && zeilen[zeilen.length - 1].trim()) zeilen.push("");
+    zeilen.push("## Log");
+    logI = zeilen.length - 1;
+  }
+  let treffer = null;
+  for (let i = logI + 1; i < zeilen.length; i++) {
+    if (zeilen[i].trim().startsWith("## ")) break;
+    const m = zeilen[i].match(GES_LOG_RE);
+    if (m && m[1] === tagIso) { treffer = i; break; }
+  }
+  const felder = treffer !== null ? gesFelderLesen(zeilen[treffer]) : {};
+  return { zeilen, logI, treffer, felder };
+}
+
+function gesSpeichern(text, tagIso, felder) {
+  const { zeilen, treffer } = gesTagzeile(text, tagIso);
+  if (!Object.keys(felder).length) {
+    if (treffer !== null) zeilen.splice(treffer, 1);
+  } else {
+    const neu = gesZeileBauen(tagIso, felder);
+    if (treffer !== null) zeilen[treffer] = neu;
+    else zeilen.push(neu);
+  }
+  return joinZeilen(zeilen);
+}
+
+function fmtG(x) {
+  // Python "%g" % round(x, 1)
+  const v = Math.round(x * 10) / 10;
+  return String(v);
+}
+
+function gesundheitLog(text, feld, wert, modus, tagIso) {
+  tagIso = tagIso || iso(heute());
+  if (!["gewicht", "protein", "wasser"].includes(feld)) throw new Error("Unbekanntes Feld: " + feld);
+  const { felder } = gesTagzeile(text, tagIso);
+  let w = parseFloat(String(wert).replace(",", "."));
+  if (!isFinite(w)) throw new Error("Keine Zahl: " + wert);
+  if (modus === "add") w += parseFloat(felder[feld] || 0) || 0;
+  if (w <= 0) delete felder[feld];
+  else felder[feld] = fmtG(w);
+  return { text: gesSpeichern(text, tagIso, felder), felder };
+}
+
+function gesundheitSupp(text, kuerzel, an, tagIso) {
+  tagIso = tagIso || iso(heute());
+  kuerzel = (kuerzel || "").trim().toLowerCase();
+  if (!/^[a-zäöüß0-9_-]{1,24}$/.test(kuerzel)) throw new Error("Ungueltiges Supplement: " + kuerzel);
+  const { felder } = gesTagzeile(text, tagIso);
+  const supp = felder.supp || [];
+  if (an && !supp.includes(kuerzel)) supp.push(kuerzel);
+  else if (!an && supp.includes(kuerzel)) supp.splice(supp.indexOf(kuerzel), 1);
+  if (supp.length) felder.supp = supp;
+  else delete felder.supp;
+  return { text: gesSpeichern(text, tagIso, felder), supp };
+}
+
+function norm(s) {
+  return String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function suppRhythmus(text) {
+  const t = norm(text);
+  if (!t) return ["taeglich", []];
+  if (t.startsWith("bedarf") || t.startsWith("nach bedarf")
+      || t.startsWith("optional") || t.startsWith("wenn")) return ["bedarf", []];
+  const tage = [];
+  for (let w of t.split(/\s+/)) {
+    w = capitalize(w.slice(0, 2));
+    if (WOCHENTAGE.includes(w) && !tage.includes(WOCHENTAGE.indexOf(w))) {
+      tage.push(WOCHENTAGE.indexOf(w));
+    }
+  }
+  if (tage.length) return ["wochentag", tage.sort((a, b) => a - b)];
+  return ["taeglich", []];
+}
+
+function suppFaellig(s, tag) {
+  tag = tag || heute();
+  if (s.art === "wochentag") return s.tage.includes(weekday(tag));
+  return s.art === "taeglich";
+}
+
+function suppWann(s) {
+  if (s.notiz) return s.notiz;
+  if (s.art === "bedarf") return "bei Bedarf";
+  if (s.art === "wochentag") {
+    if (s.tage.length === 1) return WOCHENTAG_LANG[s.tage[0]];
+    return s.tage.map((i) => WOCHENTAGE[i]).join(", ");
+  }
+  return "täglich";
+}
+
+function parseGesundheit(text) {
+  const ab = abschnitte(text);
+  const supp = [];
+  for (const z of ab["Supplemente"] || []) {
+    const teile = z.split("|").map((x) => x.trim());
+    const key = teile[0].toLowerCase();
+    if (!key) continue;
+    const label = teile.length > 1 && teile[1] ? teile[1] : titleCase(teile[0]);
+    const [art, tage] = suppRhythmus(teile.length > 2 ? teile[2] : "");
+    supp.push({ key, label, art, tage, notiz: teile.length > 3 ? teile[3] : "" });
+  }
+  const ziele = {};
+  for (const z of ab["Ziele"] || []) {
+    if (z.includes("|")) {
+      const idx = z.indexOf("|");
+      const k = z.slice(0, idx), v = z.slice(idx + 1);
+      const f = parseFloat(v.trim().replace(",", "."));
+      if (isFinite(f)) ziele[k.trim().toLowerCase()] = f;
+    }
+  }
+  const log = {};
+  for (const z of ab["Log"] || []) {
+    const m = z.match(GES_LOG_RE);
+    if (m) log[m[1]] = gesFelderLesen(z);
+  }
+  return { supplemente: supp, ziele, log };
+}
+
+// -------------------------------------------------------------- Sozial
+
+const SOZIAL_LOG_RE = /^\s*(\d{4}-\d{2}-\d{2})\s*\|\s*([a-zäöüß0-9_-]{1,24})\s*\|\s*(\d{1,2}|-)\s*\|\s*(\d{1,2}|-)\s*(?:\|\s*(.*?))?\s*$/i;
+const SOZIAL_STUFE_RE = /^\s*(\d{1,2})\s*\|\s*([a-zäöüß0-9_-]{1,24})\s*\|\s*([^|]+?)\s*(?:\|\s*(.*?))?\s*$/i;
+
+const SOZIAL_WERKZEUGE = [
+  { name: "Anschlussfragen",
+    tu: "Greif ein Wort auf, das gerade gefallen ist, und frag genau danach. \"Du meintest, das Projekt wäre fast gekippt, was war da los?\" Vor jedem Themenwechsel: erst eine Anschlussfrage.",
+    warum: "In Gesprächsstudien und bei fast 2000 Speed-Dates wurden Menschen, die mehr Anschlussfragen stellten, deutlich lieber gemocht und bekamen mehr zweite Dates. Die meisten merken nicht einmal, dass es passiert.",
+    quelle: "Huang et al. 2017, JPSP" },
+  { name: "Der Liking Gap",
+    tu: "Nach dem Gespräch kommt der innere Kritiker. Sein Urteil ist messbar zu streng, also korrigier es bewusst nach oben und handel nach der korrigierten Version: meld dich, schlag ein nächstes Treffen vor.",
+    warum: "Über viele Studien hinweg mochten Gesprächspartner die Leute systematisch mehr, als diese selbst glaubten. Der Effekt hält bei neuen Bekanntschaften monatelang an und ist bei zurückhaltenden Menschen am größten.",
+    quelle: "Boothby et al. 2018, Psychological Science" },
+  { name: "Tiefer statt breiter",
+    tu: "Tausch eine Standardfrage gegen eine echte: \"Wie kam es dazu?\", \"Worauf freust du dich gerade?\", \"Was würdest du heute anders machen?\" Und bleib dann dran, statt das Thema zu wechseln.",
+    warum: "Menschen überschätzen massiv, wie unangenehm tiefere Gespräche werden, und unterschätzen, wie verbunden sie sich danach fühlen. Nach dem Ausprobieren wollten die Teilnehmer mehr davon, auch mit Fremden.",
+    quelle: "Kardas, Kumar, Epley 2021, JPSP" },
+  { name: "Das Kompliment rauslassen",
+    tu: "Einmal heute ein konkretes, ehrliches Kompliment aussprechen statt es nur zu denken. Für eine Leistung oder Entscheidung. Keine Sorge um die Formulierung, Wärme zählt.",
+    warum: "Gebende unterschätzen zuverlässig, wie gut ein Kompliment ankommt, und überschätzen, wie unangenehm es ist. Zwei Forschungsgruppen unabhängig, gleiches Ergebnis. Danach ist übrigens auch die eigene Laune besser.",
+    quelle: "Boothby und Bohns 2021; Zhao und Epley 2021" },
+  { name: "Erst spiegeln, dann senden",
+    tu: "Bevor du deine Sicht bringst: den Punkt des anderen in einem Satz zusammenfassen und kurz fragen, ob das stimmt. Handy weg, voll da sein.",
+    warum: "Gutes Zuhören hängt über 144 Studien stark mit Beziehungsqualität zusammen. Wer einem guten Zuhörer gegenübersitzt, wird klarer, offener und weniger angespannt, und Anschlussfragen wirken genau deshalb.",
+    quelle: "Kluger et al. 2023, Meta-Analyse" },
+  { name: "Aufregung umbenennen",
+    tu: "Vor Anruf, Meeting oder Auftritt nicht beruhigen wollen, sondern innerlich sagen: \"Ich bin aufgeregt.\" Die Energie gehört zum Auftritt, nicht gegen ihn.",
+    warum: "Herzklopfen lässt sich nicht abschalten, aber umdeuten. Wer Nervosität als Aufregung labelte, sprach und performte im Experiment besser als wer sich zu beruhigen versuchte. Replikationslage gemischt, Kosten null, also einen Versuch wert.",
+    quelle: "Brooks 2014, JEP General" },
+  { name: "Eine Krücke weglassen",
+    tu: "Such dir ein Sicherheitsverhalten aus, das dich schützt (Sätze vorformulieren, aufs Handy schauen, leise reden, knappe Antworten) und lass es ein Gespräch lang komplett weg. Aufmerksamkeit voll auf die andere Person.",
+    warum: "Ohne Sicherheitsverhalten wirkten dieselben Personen auf Fremde entspannter und sympathischer, nicht weniger. Die Krücken halten die Anspannung am Leben und sind von außen sichtbarer als man denkt.",
+    quelle: "Leigh, Chiu, Clark 2021; Clark-Wells-Modell" },
+  { name: "Wieder melden",
+    tu: "Schreib heute jemandem, mit dem du lange nicht gesprochen hast. Zwei Sätze reichen: woran du gedacht hast, und wie es so läuft.",
+    warum: "13 vorregistrierte Experimente plus eine unabhängige Replikation: Empfänger freuen sich deutlich mehr über ein Lebenszeichen, als Absender glauben. Je überraschender die Nachricht, desto größer die Freude.",
+    quelle: "Liu et al. 2023, JPSP" },
+  { name: "Widerspruch mit Andockstelle",
+    tu: "Bei Meinungsverschiedenheit zuerst: \"Ich verstehe, dass...\", dann ein Punkt, wo der andere recht hat, dann dein Aber, weich formuliert: \"könnte\", \"oft\", \"aus meiner Sicht\".",
+    warum: "Dieses Rezept machte Leute für die Gegenseite messbar überzeugender und die Gespräche kooperativer, auch schriftlich. Die eigene Einschätzung, wie empfänglich man wirkt, liegt dabei fast immer daneben.",
+    quelle: "Yeomans et al. 2020, OBHDP" },
+  { name: "Aufmerksamkeit nach draußen",
+    tu: "Wenn du dich beim Selbstbeobachten erwischst (Wie wirke ich gerade?): Fokus zurück auf die andere Person. Was sagt sie wirklich, wie geht es ihr, was willst du dazu wissen?",
+    warum: "Der Blick nach innen ist der Motor sozialer Anspannung. Den Fokus nach außen zu verlagern senkt negative Selbstbilder und verbessert den Eindruck, den man macht. Kernstück der wirksamsten Therapieform für Sozialangst.",
+    quelle: "Clark und Wells 1995; Furukawa et al. 2009" },
+  { name: "Konkret Danke sagen",
+    tu: "Eine kurze Nachricht an jemanden, der nie richtig Danke gehört hat: was die Person getan hat und was es für dich verändert hat. Fünf Minuten, keine Kunst.",
+    warum: "Schreibende unterschätzen, wie sehr sich Empfänger freuen, und überschätzen die Peinlichkeit massiv. Die Sorge um die richtigen Worte ist unbegründet, was ankommt ist die Wärme.",
+    quelle: "Kumar und Epley 2018, Psychological Science" },
+  { name: "Auf dem Höhepunkt aufhören",
+    tu: "Beende Gespräche selbst und einen Tick früher als bequem: ein Satz Wertschätzung, ein konkreter nächster Schritt, raus. \"Muss los. Das mit X fand ich stark, lass uns da weitermachen.\"",
+    warum: "In über 900 untersuchten Gesprächen endeten nur rund 2 Prozent dann, wann beide es wollten, fast die Hälfte lief zu lang. Wer sauber endet, hinterlässt gern wieder statt endlich vorbei.",
+    quelle: "Mastroianni et al. 2021, PNAS" },
+];
+
+function parseSozial(text) {
+  const stufen = [], log = [], reflexionen = [];
+  const einst = {};
+  let plan = "";
+  let abschnitt = null, refl = null, fence = false, komm = false;
+
+  for (const zeile of nl(text).split("\n")) {
+    const s = zeile.trim();
+    if (s.startsWith("```")) { fence = !fence; continue; }
+    if (fence) continue;
+    if (komm) { if (s.includes("-->")) komm = false; continue; }
+    if (s.startsWith("<!--")) { if (!s.includes("-->")) komm = true; continue; }
+    if (s.startsWith("## ")) { abschnitt = s.slice(3).trim().toLowerCase(); refl = null; continue; }
+    if (abschnitt === "reflexionen") {
+      if (s.startsWith("### ")) {
+        refl = { datum: s.slice(4).trim(), zeilen: [] };
+        reflexionen.push(refl);
+        continue;
+      }
+      if (refl !== null && s) refl.zeilen.push(s);
+      continue;
+    }
+    if (s.startsWith("#") || s === "---" || !s) continue;
+
+    if (abschnitt === "stufen") {
+      const m = s.match(SOZIAL_STUFE_RE);
+      if (m) stufen.push({ stufe: +m[1], kuerzel: m[2].toLowerCase(),
+        uebung: m[3].trim(), hinweis: (m[4] || "").trim() });
+    } else if (abschnitt === "einstellungen") {
+      if (s.includes("|")) {
+        const idx = s.indexOf("|");
+        const k = s.slice(0, idx).trim().toLowerCase();
+        const v = parseInt(s.slice(idx + 1).trim(), 10);
+        if (Number.isFinite(v) && /^[+-]?\d+$/.test(s.slice(idx + 1).trim())) einst[k] = v;
+      }
+    } else if (abschnitt === "plan") {
+      if (!plan) plan = s;
+    } else if (abschnitt === "log") {
+      const m = s.match(SOZIAL_LOG_RE);
+      if (m) {
+        const d = parseDateIso(m[1]);
+        if (d === null) continue;
+        const zahl = (x) => {
+          if (x === "-") return null;
+          const n = parseInt(x, 10);
+          return n >= 0 && n <= 10 ? n : null;
+        };
+        log.push({ datum: d, kuerzel: m[2].toLowerCase(),
+          vorher: zahl(m[3]), nachher: zahl(m[4]), notiz: (m[5] || "").trim() });
+      }
+    }
+  }
+  for (const r of reflexionen) {
+    r.text = r.zeilen.join("\n").trim();
+    delete r.zeilen;
+  }
+  stufen.sort((a, b) => a.stufe - b.stufe);
+  const nummern = stufen.map((x) => x.stufe);
+  let stufe = "stufe" in einst ? einst.stufe : (nummern.length ? nummern[0] : 1);
+  if (nummern.length && !nummern.includes(stufe)) {
+    stufe = nummern.reduce((best, n) =>
+      Math.abs(n - stufe) < Math.abs(best - stufe) ? n : best, nummern[0]);
+  }
+  log.sort((a, b) => a.datum - b.datum);
+  return { stufen, stufe,
+    wochenziel: Math.max(1, Math.min(7, "wochenziel" in einst ? einst.wochenziel : 5)),
+    plan, log, reflexionen };
+}
+
+function sektionIndex(zeilen, name) {
+  let fence = false;
+  for (let i = 0; i < zeilen.length; i++) {
+    if (zeilen[i].trim().startsWith("```")) { fence = !fence; continue; }
+    if (fence) continue;
+    if (zeilen[i].trim().toLowerCase() === ("## " + name).toLowerCase()) return i;
+  }
+  return null;
+}
+
+function sektionEnde(zeilen, start) {
+  let fence = false;
+  for (let i = start + 1; i < zeilen.length; i++) {
+    const s = zeilen[i].trim();
+    if (s.startsWith("```")) { fence = !fence; continue; }
+    if (fence) continue;
+    if (s.startsWith("## ") || s.startsWith("# ")) return i;
+  }
+  return zeilen.length;
+}
+
+function sektionSichern(zeilen, name) {
+  const i = sektionIndex(zeilen, name);
+  if (i !== null) return i;
+  if (zeilen.length && zeilen[zeilen.length - 1].trim()) zeilen.push("");
+  zeilen.push("## " + name);
+  return zeilen.length - 1;
+}
+
+function zeileEinsortieren(zeilen, sektion, neu, trefferRe, schluessel) {
+  const i = sektionSichern(zeilen, sektion);
+  const ende = sektionEnde(zeilen, i);
+  for (let j = i + 1; j < ende; j++) {
+    const m = zeilen[j].match(trefferRe);
+    if (m && m[1] === schluessel) { zeilen[j] = neu; return zeilen; }
+  }
+  let einfuegen = ende;
+  while (einfuegen > i + 1 && !zeilen[einfuegen - 1].trim()) einfuegen -= 1;
+  if (einfuegen === i + 1) { zeilen.splice(einfuegen, 0, ""); einfuegen += 1; }
+  zeilen.splice(einfuegen, 0, neu);
+  return zeilen;
+}
+
+function sozialZeilen(text) {
+  let zeilen = text ? zeilenAus(text) : [];
+  if (!zeilen.length || (zeilen.length === 1 && !zeilen[0])) {
+    zeilen = ["# Sozial", "", "---", "", "## Stufen", "",
+      "## Einstellungen", "", "## Plan", "", "## Log", "", "## Reflexionen"];
+  }
+  return zeilen;
+}
+
+function sozialAnhaengen(zeilen, sektion, neu) {
+  const i = sektionSichern(zeilen, sektion);
+  let ende = sektionEnde(zeilen, i);
+  while (ende > i + 1 && !zeilen[ende - 1].trim()) ende -= 1;
+  if (ende === i + 1) { zeilen.splice(ende, 0, ""); ende += 1; }
+  for (let n = 0; n < neu.length; n++) zeilen.splice(ende + n, 0, neu[n]);
+  return zeilen;
+}
+
+// Gibt {text, zeile} zurueck. Das Habit sozial setzt der Aufrufer extra.
+function sozialLog(text, kuerzel, vorher, nachher, notiz, tagIso, bekannt) {
+  const tag = tagIso ? parseDateIso(tagIso) : heute();
+  if (tag > heute()) throw new Error("In der Zukunft geuebt wird nicht.");
+  kuerzel = (kuerzel || "").trim().toLowerCase();
+  if (!bekannt.has(kuerzel)) throw new Error("Unbekannte Uebung: " + kuerzel);
+  const zahl = (x) => {
+    if (x === "" || x === "-" || x === null || x === undefined) return "-";
+    const s = String(x).trim();
+    if (!/^[+-]?\d+$/.test(s)) throw new Error("Keine Zahl von 0 bis 10: " + x);
+    const n = parseInt(s, 10);
+    if (n < 0 || n > 10) throw new Error("Nur 0 bis 10, nicht " + n);
+    return String(n);
+  };
+  notiz = (notiz || "").split(/\s+/).filter(Boolean).join(" ");
+  const zeile = iso(tag) + " | " + kuerzel + " | " + zahl(vorher) + " | "
+    + zahl(nachher) + (notiz ? " | " + notiz : "");
+  const zeilen = sozialZeilen(text);
+  sozialAnhaengen(zeilen, "Log", [zeile]);
+  return { text: joinZeilen(zeilen), zeile };
+}
+
+function sozialStufeSetzen(text, stufe, nummern) {
+  stufe = parseInt(stufe, 10);
+  if (!Number.isFinite(stufe)) throw new Error("Keine Stufe: " + stufe);
+  if (nummern.length && !nummern.includes(stufe)) throw new Error("Diese Stufe gibt es nicht: " + stufe);
+  const zeilen = sozialZeilen(text);
+  const neu = "stufe | " + stufe;
+  zeileEinsortieren(zeilen, "Einstellungen", neu, /^\s*(stufe)\s*\|/, "stufe");
+  return { text: joinZeilen(zeilen), stufe };
+}
+
+function sozialReflexionSpeichern(text, refText, tagIso) {
+  const tag = tagIso || iso(heute());
+  refText = (refText || "").replace(/\r/g, "").trim();
+  if (!refText) throw new Error("Leere Reflexion bringt nichts.");
+  const zeilen = sozialZeilen(text);
+  const i = sektionSichern(zeilen, "Reflexionen");
+  const ende = sektionEnde(zeilen, i);
+  const kopf = "### " + tag;
+  let block = null;
+  for (let j = i + 1; j < ende; j++) {
+    if (zeilen[j].trim() === kopf) { block = j; break; }
+  }
+  const neu = refText.split("\n");
+  if (block === null) {
+    sozialAnhaengen(zeilen, "Reflexionen", [kopf].concat(neu));
+  } else {
+    let bende = ende;
+    for (let j = block + 1; j < ende; j++) {
+      if (zeilen[j].trim().startsWith("### ")) { bende = j; break; }
+    }
+    while (bende > block + 1 && !zeilen[bende - 1].trim()) bende -= 1;
+    for (let n = 0; n < neu.length; n++) zeilen.splice(bende + n, 0, neu[n]);
+  }
+  return { text: joinZeilen(zeilen), tag };
+}
+
+function sozialWoche(daten, tag) {
+  tag = tag || heute();
+  const montag = addDays(tag, -weekday(tag));
+  const sonntag = addDays(montag, 6);
+  const tage = new Set();
+  for (const x of daten.log) {
+    if (x.datum >= montag && x.datum <= sonntag) tage.add(iso(x.datum));
+  }
+  return { tage: tage.size, ziel: daten.wochenziel, heute: tage.has(iso(tag)) };
+}
+
+function sozialBilanz(daten) {
+  const paare = daten.log.filter((x) => x.vorher !== null && x.nachher !== null);
+  if (!paare.length) return { n: 0, vorher: 0.0, nachher: 0.0, leichter: 0 };
+  return {
+    n: paare.length,
+    vorher: paare.reduce((a, x) => a + x.vorher, 0) / paare.length,
+    nachher: paare.reduce((a, x) => a + x.nachher, 0) / paare.length,
+    leichter: paare.filter((x) => x.nachher < x.vorher).length,
+  };
+}
+
+function sozialWerkzeug(tag) {
+  tag = tag || heute();
+  const [j, w] = isoWoche(tag);
+  return SOZIAL_WERKZEUGE[(j * 53 + w) % SOZIAL_WERKZEUGE.length];
+}
+
+function stufenKuerzel(daten) {
+  for (const s of daten.stufen) {
+    if (s.stufe === daten.stufe) return s.kuerzel;
+  }
+  return "";
+}
+
+function sozialBereitFuerMehr(daten) {
+  const kz = stufenKuerzel(daten);
+  const aktuelle = daten.log.filter((x) => x.kuerzel === kz && x.nachher !== null);
+  const letzte = aktuelle.slice(-3);
+  const hoeher = daten.stufen.filter((s) => s.stufe > daten.stufe);
+  return letzte.length === 3 && letzte.every((x) => x.nachher <= 3) && hoeher.length > 0;
+}
+
+// ------------------------------------------------------------ Tagebuch
+
+const ZIELE_RE = /####\s*(?:Ziele f[üu]r morgen|Was nehme ich mir f[üu]r morgen vor)[^\n]*\n([\s\S]*?)(?=\n####|$)/i;
+
+// eintraege: [{datum, text}] aufsteigend sortiert.
+function letzteZiele(eintraege) {
+  for (let i = eintraege.length - 1; i >= 0; i--) {
+    const m = nl(eintraege[i].text).match(ZIELE_RE);
+    if (!m) continue;
+    const zeilen = m[1].split("\n").map((z) => z.trim()).filter(Boolean);
+    if (zeilen.length) return { datum: eintraege[i].datum, ziele: zeilen };
+  }
+  return null;
+}
+
+const REF_RE = /(?<!\[)\[([^\[\]\n]{1,60})\](?!\]|\()/g;
+const NAME_VERBOTEN = /[\\/:*?"<>|#^]/;
+
+// vorhanden: Map lowercase-Name -> Originalname. Neue Stubs kommen in
+// angelegt, der Aufrufer legt die Dateien an. Gibt {text, angelegt} zurueck.
+function refsAufloesen(text, vorhanden) {
+  text = nl(text);
+  const angelegt = [];
+  const neu = text.replace(REF_RE, (ganz, rohRaw) => {
+    const roh = rohRaw.trim();
+    if (!roh || roh.toLowerCase() === "x") return ganz;
+    if (NAME_VERBOTEN.test(roh)) return ganz;
+    const treffer = vorhanden.get(roh.toLowerCase());
+    if (treffer) return "[[" + treffer + "]]";
+    const name = /[a-zäöüß]/.test(roh[0]) ? roh[0].toUpperCase() + roh.slice(1) : roh;
+    if (!vorhanden.has(name.toLowerCase())) {
+      angelegt.push(name);
+      vorhanden.set(name.toLowerCase(), name);
+    }
+    return "[[" + name + "]]";
+  });
+  return { text: neu, angelegt };
+}
+
+// schlagworte: [[begriff, notiz]] laengste zuerst (aus parseSchlagworte).
+function parseSchlagworte(text) {
+  if (text.includes("---")) text = text.split("---").slice(1).join("---");
+  const raus = [];
+  let fence = false;
+  for (const zeile of nl(text).split("\n")) {
+    const z = zeile.trim();
+    if (z.startsWith("```")) { fence = !fence; continue; }
+    if (fence || !z || z.startsWith("#") || z.startsWith("<!--") || z.startsWith(">")) continue;
+    let begriff, notiz;
+    if (z.includes("|")) {
+      const idx = z.indexOf("|");
+      begriff = z.slice(0, idx).trim();
+      notiz = z.slice(idx + 1).trim();
+    } else {
+      begriff = notiz = z;
+    }
+    if (begriff && notiz && begriff.length >= 2) raus.push([begriff, notiz]);
+  }
+  raus.sort((a, b) => b[0].length - a[0].length);
+  return raus;
+}
+
+function autoRefs(text, worte, vorhanden) {
+  text = nl(text);
+  if (!worte.length) return { text, angelegt: [] };
+  const angelegt = [];
+
+  const gesperrt = [];
+  for (const m of text.matchAll(/\[\[[^\]]*\]\]|\[[^\]\n]*\](\([^)]*\))?|`[^`\n]*`/g)) {
+    gesperrt.push([m.index, m.index + m[0].length]);
+  }
+  const frei = (a, b) => gesperrt.every(([s, e]) => b <= s || a >= e);
+
+  const einfuegungen = [];
+  const schon = new Set();
+  for (const m of text.matchAll(/\[\[([^\]|#]+)/g)) {
+    schon.add(m[1].trim().toLowerCase());
+  }
+  for (const [begriff, notiz] of worte) {
+    if (schon.has(notiz.toLowerCase())) continue;
+    const muster = new RegExp("(?<![\\p{L}\\p{N}_])" + escapeRe(begriff) + "(?![\\p{L}\\p{N}_])", "giu");
+    for (const m of text.matchAll(muster)) {
+      const a = m.index, b = m.index + m[0].length;
+      if (!frei(a, b)) continue;
+      if (einfuegungen.some(([ea, eb]) => !(b <= ea || a >= eb))) continue;
+      let ziel = vorhanden.get(notiz.toLowerCase());
+      if (!ziel) {
+        if (NAME_VERBOTEN.test(notiz)) break;
+        angelegt.push(notiz);
+        vorhanden.set(notiz.toLowerCase(), notiz);
+        ziel = notiz;
+      }
+      const roh = text.slice(a, b);
+      const ersatz = roh === ziel ? "[[" + ziel + "]]" : "[[" + ziel + "|" + roh + "]]";
+      einfuegungen.push([a, b, ersatz]);
+      schon.add(notiz.toLowerCase());
+      break;
+    }
+  }
+  einfuegungen.sort((x, y) => y[0] - x[0] || y[1] - x[1]);
+  for (const [a, b, ersatz] of einfuegungen) {
+    text = text.slice(0, a) + ersatz + text.slice(b);
+  }
+  return { text, angelegt };
+}
+
+// Legt den Eintrag an oder haengt an. Gibt {content, angelegt} zurueck.
+// altText null oder leer heisst: neue Datei mit Vorlage (ohne Commits).
+function tagebuchAnlegen(altText, text, tag, vorhanden, worte) {
+  text = nl(text).trim();
+  if (!text) throw new Error("Leerer Eintrag");
+  if (text.length > 100000) throw new Error("Eintrag zu lang");
+  const r1 = refsAufloesen(text, vorhanden);
+  const r2 = autoRefs(r1.text, worte, vorhanden);
+  text = r2.text;
+  const angelegt = r1.angelegt.concat(r2.angelegt);
+
+  if (altText && altText.trim()) {
+    altText = nl(altText);
+    const m = altText.match(/\n####\s*Was habe ich heute gelernt/);
+    let neu;
+    if (m) {
+      neu = rstripNl(altText.slice(0, m.index)) + "\n\n" + text + altText.slice(m.index);
+    } else {
+      neu = rstripNl(altText) + "\n\n" + text + "\n";
+    }
+    return { content: neu, angelegt, neuDatei: false };
+  }
+  const morgen = addDays(tag, 1);
+  const teile = ["[[Tagebuch]]", "", text, "",
+    "#### Was habe ich heute gelernt:", "", "",
+    "#### Ziele für morgen [[" + punktDatum(morgen) + "]]:", ""];
+  return { content: teile.join("\n"), angelegt, neuDatei: true };
+}
+
+// ===CORE-END===
+
+if (typeof module !== "undefined") {
+  module.exports = {
+    WOCHENTAGE, WOCHENTAG_LANG, HABIT_LABEL, PRIO_RANK, PRIO_LABEL,
+    makeDate, heute, iso, punktDatum, addDays, weekday, tageDiff, gleich,
+    parseDate, parseDateIso, plusMonat, plusJahr, isoWoche, tageHer,
+    faelligText, WIEDER, VERSCHIEBEN, stripChars, rstripNl, joinZeilen,
+    datenzeilen, abschnitte, TODO_RE, H2_RE, KAL_RE, listenName, todoClean,
+    parseTodos, todoListen, todoZeile, sektionAnlegen, todoAnlegen,
+    todoArchivieren, todoVerschieben, todoUmschalten, parseErledigt,
+    parseKalender, kalenderAnlegen, terminLoeschen, terminVerschieben,
+    parseHabits, streak, habitSetzen, parseSchichten, schichtAm,
+    gesFelderLesen, gesZeileBauen, gesundheitLog, gesundheitSupp,
+    suppRhythmus, suppFaellig, suppWann, parseGesundheit,
+    SOZIAL_WERKZEUGE, parseSozial, sozialLog, sozialStufeSetzen,
+    sozialReflexionSpeichern, sozialWoche, sozialBilanz, sozialWerkzeug,
+    sozialBereitFuerMehr, stufenKuerzel, letzteZiele, refsAufloesen,
+    parseSchlagworte, autoRefs, tagebuchAnlegen, titleCase, capitalize,
+  };
+}
+
+</script>
+<script>
+// ===APP-START===
+// Dashboard Mobile: Oberflaeche und GitHub-Anbindung.
+// Der Kern (Parser und Schreiblogik) steht in core.js und ist 1:1 aus
+// generate.py und aktionen.py portiert.
+"use strict";
+
+// ------------------------------------------------------------- Helfer
+
+const $ = (sel) => document.querySelector(sel);
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+function verlinke(s) {
+  // Nur fuers Anzeigen: nackte Adressen anklickbar machen.
+  return esc(s).replace(/(https?:\/\/[^\s<>"']+)/g,
+    (u) => '<a href="' + u + '" target="_blank" rel="noopener">' + u + "</a>");
+}
+const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
+  "August", "September", "Oktober", "November", "Dezember"];
+function kurzDatum(d) {
+  const p = (x) => String(x).padStart(2, "0");
+  return WOCHENTAGE[weekday(d)] + " " + p(d.getUTCDate()) + "." + p(d.getUTCMonth() + 1) + ".";
+}
+function langDatum(d) {
+  return WOCHENTAGE[weekday(d)] + ", " + d.getUTCDate() + ". " + MONATE[d.getUTCMonth()] + " " + d.getUTCFullYear();
+}
+
+let toastTimer = null;
+function toast(text, fehler) {
+  const t = $("#toast");
+  t.textContent = text;
+  t.className = "sichtbar" + (fehler ? " rot" : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ""; }, fehler ? 5000 : 2600);
+}
+
+function sheetOeffnen(html) {
+  $("#sheetinhalt").innerHTML = html;
+  $("#schleier").classList.add("offen");
+}
+function sheetZu() {
+  $("#schleier").classList.remove("offen");
+  $("#sheetinhalt").innerHTML = "";
+}
+
+// ------------------------------------------------- Einstellungen, Ablage
+
+const CFG_KEY = "dashmobil-cfg";
+const CACHE_KEY = "dashmobil-cache";
+
+let cfg = { owner: "ReapreZ", repo: "obsidian-vault", branch: "main", token: "" };
+try { Object.assign(cfg, JSON.parse(localStorage.getItem(CFG_KEY) || "{}")); } catch (e) { /* egal */ }
+function cfgSpeichern() { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
+
+// ablage: pfad -> {text, sha}
+let ablage = new Map();
+let todoNamen = [];       // Dateinamen Dashboard/Todos*.md in fester Reihenfolge
+let tagebuchNamen = [];   // JJJJ.MM.TT.md, aufsteigend
+let stand = null;         // Zeitpunkt des letzten erfolgreichen Ladens
+
+function cacheSpeichern() {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      ablage: Array.from(ablage.entries()), todoNamen, tagebuchNamen, stand,
+    }));
+  } catch (e) { /* Speicher voll, egal */ }
+}
+function cacheLaden() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+    if (!c) return false;
+    ablage = new Map(c.ablage);
+    todoNamen = c.todoNamen || [];
+    tagebuchNamen = c.tagebuchNamen || [];
+    stand = c.stand || null;
+    return ablage.size > 0;
+  } catch (e) { return false; }
+}
+
+// --------------------------------------------------------- GitHub-API
+
+const API = "https://api.github.com";
+
+function b64dec(b64) {
+  const bin = atob(String(b64).replace(/\s/g, ""));
+  const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+function b64enc(text) {
+  const bytes = new TextEncoder().encode(text);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+function apiPfad(pfad) {
+  return pfad.split("/").map(encodeURIComponent).join("/");
+}
+
+async function api(weg, opts) {
+  if (!cfg.token) { const e = new Error("Kein Token hinterlegt"); e.keinToken = true; throw e; }
+  const r = await fetch(API + "/repos/" + cfg.owner + "/" + cfg.repo + weg, Object.assign({
+    headers: {
+      "Authorization": "Bearer " + cfg.token,
+      "Accept": "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  }, opts || {}));
+  if (r.status === 404) { const e = new Error("404"); e.fehlt = true; throw e; }
+  if (r.status === 401) { const e = new Error("Token ungültig oder abgelaufen"); e.keinToken = true; throw e; }
+  if (r.status === 409 || r.status === 422) {
+    const e = new Error("Konflikt"); e.konflikt = true; throw e;
+  }
+  if (!r.ok) throw new Error("GitHub " + r.status);
+  return r.json();
+}
+
+async function ladeDatei(pfad) {
+  try {
+    const d = await api("/contents/" + apiPfad(pfad) + "?ref=" + cfg.branch);
+    const eintrag = { text: b64dec(d.content), sha: d.sha };
+    ablage.set(pfad, eintrag);
+    return eintrag;
+  } catch (e) {
+    if (e.fehlt) { const leer = { text: "", sha: null }; ablage.set(pfad, leer); return leer; }
+    throw e;
+  }
+}
+
+async function holeDatei(pfad) {
+  return ablage.get(pfad) || ladeDatei(pfad);
+}
+
+async function ladeOrdner(pfad) {
+  return api("/contents/" + apiPfad(pfad) + "?ref=" + cfg.branch);
+}
+
+async function putDatei(pfad, text, nachricht) {
+  const alt = ablage.get(pfad);
+  const body = { message: nachricht, content: b64enc(text), branch: cfg.branch };
+  if (alt && alt.sha) body.sha = alt.sha;
+  const d = await api("/contents/" + apiPfad(pfad), {
+    method: "PUT", body: JSON.stringify(body),
+  });
+  ablage.set(pfad, { text, sha: d.content.sha });
+}
+
+// Fuehrt rechne(texte) aus und schreibt alle geaenderten Dateien.
+// Bei einem sha-Konflikt wird frisch geladen und neu gerechnet.
+async function transaktion(pfade, rechne, nachricht) {
+  for (let versuch = 0; versuch < 3; versuch++) {
+    const texte = {};
+    for (const p of pfade) texte[p] = (await holeDatei(p)).text;
+    const out = rechne(texte);
+    try {
+      for (const p of Object.keys(out)) {
+        if (out[p] !== null && out[p] !== nl(texte[p])) {
+          await putDatei(p, out[p], nachricht);
+        }
+      }
+      cacheSpeichern();
+      return;
+    } catch (e) {
+      if (e.konflikt) { for (const p of pfade) ablage.delete(p); continue; }
+      throw e;
+    }
+  }
+  throw new Error("Dauerkonflikt, bitte einmal neu laden");
+}
+
+async function alleNotizNamen() {
+  const d = await api("/git/trees/" + encodeURIComponent(cfg.branch) + "?recursive=1");
+  const map = new Map();
+  for (const e of d.tree || []) {
+    if (e.type !== "blob" || !e.path.endsWith(".md")) continue;
+    if (/(^|\/)(\.obsidian|\.git|\.trash)\//.test(e.path)) continue;
+    const name = e.path.split("/").pop().slice(0, -3);
+    if (!map.has(name.toLowerCase())) map.set(name.toLowerCase(), name);
+  }
+  return map;
+}
+
+// ------------------------------------------------------------- Laden
+
+let laedt = false;
+
+async function aktualisieren(leise) {
+  if (laedt) return;
+  if (!cfg.token) { einstellungenSheet(true); return; }
+  laedt = true;
+  $("#syncknopf").classList.add("dreht");
+  try {
+    const dash = await ladeOrdner("Dashboard");
+    const namen = dash.filter((e) => e.type === "file" && /^Todos.*\.md$/.test(e.name))
+      .map((e) => e.name).sort();
+    if (namen.includes("Todos.md")) {
+      namen.splice(namen.indexOf("Todos.md"), 1);
+      namen.unshift("Todos.md");
+    }
+    todoNamen = namen;
+
+    const feste = ["Dashboard/Kalender.md", "Dashboard/Habits.md",
+      "Dashboard/Schichten.md", "Dashboard/Gesundheit.md",
+      "Dashboard/Sozial.md", "Dashboard/Schlagworte.md"];
+    await Promise.all(
+      namen.map((n) => ladeDatei("Dashboard/" + n)).concat(feste.map(ladeDatei)));
+
+    const tb = await ladeOrdner("Tagebuch").catch(() => []);
+    tagebuchNamen = tb.filter((e) => e.type === "file" && /^\d{4}\.\d{2}\.\d{2}\.md$/.test(e.name))
+      .map((e) => e.name).sort();
+    // Heutigen Eintrag plus die letzten Eintraege laden. Fuer die Ziele
+    // rueckwaerts in Paketen nachladen, bis welche gefunden sind, wie
+    // letzte_ziele am PC (das liest einfach alle).
+    const laden = new Set(tagebuchNamen.slice(-7));
+    laden.add(punktDatum(heute()) + ".md");
+    await Promise.all(Array.from(laden)
+      .filter((n) => tagebuchNamen.includes(n))
+      .map((n) => ladeDatei("Tagebuch/" + n)));
+    let tiefe = 7;
+    while (!letzteZiele(tagebuchEintraege()) && tiefe < tagebuchNamen.length && tiefe < 60) {
+      const paket = tagebuchNamen.slice(-(tiefe + 8), -tiefe);
+      if (!paket.length) break;
+      await Promise.all(paket.map((n) => ladeDatei("Tagebuch/" + n)));
+      tiefe += 8;
+    }
+
+    stand = Date.now();
+    cacheSpeichern();
+    renderAlles();
+    if (!leise) toast("Aktualisiert");
+  } catch (e) {
+    if (e.keinToken) { einstellungenSheet(true); }
+    else toast("Laden fehlgeschlagen: " + e.message + (stand ? ". Zeige letzten Stand." : ""), true);
+  } finally {
+    laedt = false;
+    $("#syncknopf").classList.remove("dreht");
+  }
+}
+
+// ------------------------------------------------------ Abgeleitetes
+
+function text(pfad) { return (ablage.get(pfad) || { text: "" }).text; }
+
+function todoDateien() {
+  return todoNamen.map((datei) => ({ datei, text: text("Dashboard/" + datei) }));
+}
+function alleTodos() { return parseTodos(todoDateien()); }
+function tagebuchEintraege() {
+  const raus = [];
+  for (const n of tagebuchNamen) {
+    if (!ablage.has("Tagebuch/" + n)) continue;
+    const d = parseDate(n.slice(0, -3));
+    if (d) raus.push({ datum: d, text: text("Tagebuch/" + n) });
+  }
+  raus.sort((a, b) => a.datum - b.datum);
+  return raus;
+}
+
+// ------------------------------------------------------------ Render
+
+let aktTab = "heute";
+let kalMonat = null;   // erster Tag des angezeigten Monats
+let kalTag = null;     // ausgewaehlter Tag
+let tbTag = null;      // Tagebuch-Datum
+
+function renderAlles() {
+  $("#kopfdatum").textContent = langDatum(heute());
+  $("#standzeile").textContent = stand
+    ? "Stand " + new Date(stand).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
+    : "Noch nichts geladen";
+  renderHeute();
+  renderKalender();
+  renderTagebuch();
+  renderSozial();
+}
+
+// ------------------------------------------------------------- Heute
+
+function todoZeileHtml(t, mitFaellig) {
+  const idx = "data-datei=\"" + esc(t.datei) + "\" data-raw=\"" + esc(t.raw) + "\"";
+  let meta = "<span>" + esc(t.liste) + " / " + esc(t.sektion) + "</span>";
+  if (t.prio) meta += "<span class=\"prio " + t.prio + "\">" + PRIO_LABEL[t.prio] + "</span>";
+  if (t.due && mitFaellig) {
+    const n = tageDiff(t.due, heute());
+    const cls = n < 0 ? "ueberfaellig" : n === 0 ? "heutefaellig" : "";
+    meta += "<span class=\"" + cls + "\">" + esc(faelligText(t.due)) + "</span>";
+  } else if (t.due) {
+    meta += "<span>@" + iso(t.due) + "</span>";
+  }
+  return "<div class=\"todo\">" +
+    "<button class=\"kreis\" data-aktion=\"todo-menue\" " + idx + " aria-label=\"abhaken\"></button>" +
+    "<div class=\"inhalt\" data-aktion=\"todo-menue\" " + idx + ">" +
+    "<div class=\"text\">" + verlinke(t.text) + "</div>" +
+    "<div class=\"meta\">" + meta + "</div></div></div>";
+}
+
+function renderHeute() {
+  const b = [];
+  const h = heute();
+  const cfgS = parseSchichten(text("Dashboard/Schichten.md"));
+  const heuteS = schichtAm(h, cfgS);
+  const morgenS = schichtAm(addDays(h, 1), cfgS);
+
+  b.push("<div class=\"karte\"><h3>Schicht</h3><div class=\"schichtzeile\">");
+  if (heuteS) {
+    b.push("<span class=\"name\">" + esc(heuteS.name) + "</span>" +
+      "<span class=\"zeit\">" + esc(heuteS.von) + " bis " + esc(heuteS.bis) + "</span>");
+  } else {
+    b.push("<span class=\"name\">Frei</span>");
+  }
+  b.push("<span class=\"morgen\">morgen<br>" + esc(morgenS ? morgenS.name : "frei") + "</span>");
+  b.push("</div></div>");
+
+  const todos = alleTodos().filter((t) => !t.done);
+  const faellig = todos.filter((t) => t.due && tageDiff(t.due, h) <= 0);
+  faellig.sort((x, y) => (x.due - y.due) || (PRIO_RANK[x.prio] - PRIO_RANK[y.prio]));
+  b.push("<div class=\"karte\"><h3>Fällig <span class=\"zusatz\">" + faellig.length + " offen</span></h3>");
+  if (faellig.length) b.push(faellig.map((t) => todoZeileHtml(t, true)).join(""));
+  else b.push("<div class=\"leer\">Nichts fällig. Prag wartet.</div>");
+  b.push("</div>");
+
+  // Habits
+  const habits = parseHabits(text("Dashboard/Habits.md"));
+  const heuteHabits = habits[iso(h)] || [];
+  const bekannt = Object.keys(HABIT_LABEL);
+  const extra = heuteHabits.filter((x) => !bekannt.includes(x));
+  b.push("<div class=\"karte\"><h3>Habits <span class=\"zusatz\">" + heuteHabits.length + " heute</span></h3><div class=\"chips\">");
+  for (const k of bekannt.concat(extra)) {
+    const an = heuteHabits.includes(k);
+    const s = streak(habits, k);
+    b.push("<button class=\"chip" + (an ? " an" : "") + "\" data-aktion=\"habit\" data-habit=\"" + esc(k) + "\">" +
+      esc(HABIT_LABEL[k] || k) + (s > 1 ? "<span class=\"strk\">" + s + "×</span>" : "") + "</button>");
+  }
+  b.push("</div></div>");
+
+  // Supplemente und Wasser
+  const ges = parseGesundheit(text("Dashboard/Gesundheit.md"));
+  const logHeute = ges.log[iso(h)] || {};
+  const suppHeute = logHeute.supp || [];
+  const dran = ges.supplemente.filter((s) => suppFaellig(s, h));
+  const rest = ges.supplemente.filter((s) => !suppFaellig(s, h));
+  const offen = dran.filter((s) => !suppHeute.includes(s.key)).length;
+  b.push("<div class=\"karte\"><h3>Supplemente <span class=\"zusatz\">" +
+    (offen ? offen + " offen" : "alle genommen") + "</span></h3><div class=\"chips\">");
+  for (const s of dran) {
+    b.push("<button class=\"chip" + (suppHeute.includes(s.key) ? " an" : "") + "\" data-aktion=\"supp\" data-supp=\"" + esc(s.key) + "\">" + esc(s.label) + "</button>");
+  }
+  b.push("</div>");
+  if (rest.length) {
+    b.push("<div class=\"leisezeile\">Heute nicht dran:<div class=\"chips\">");
+    for (const s of rest) {
+      b.push("<button class=\"chip leise" + (suppHeute.includes(s.key) ? " an" : "") + "\" data-aktion=\"supp\" data-supp=\"" + esc(s.key) + "\">" +
+        esc(s.label) + " · " + esc(suppWann(s)) + "</button>");
+    }
+    b.push("</div></div>");
+  }
+  const wasser = parseFloat(logHeute.wasser || 0) || 0;
+  const ziel = ges.ziele.wasser || 8;
+  let glaeser = "";
+  for (let i = 0; i < Math.max(ziel, wasser); i++) glaeser += i < wasser ? "●" : "○";
+  b.push("<div class=\"wasser\"><button data-aktion=\"wasser\" data-wert=\"-1\">−</button>" +
+    "<span class=\"stand\">Wasser " + wasser + " von " + ziel + "</span>" +
+    "<span class=\"glaeser\">" + glaeser + "</span>" +
+    "<button class=\"plus\" data-aktion=\"wasser\" data-wert=\"1\">+</button></div>");
+  b.push("</div>");
+
+  // Naechste Termine
+  const termine = parseKalender(text("Dashboard/Kalender.md"))
+    .filter((t) => t.datum >= h).slice(0, 5);
+  b.push("<div class=\"karte\"><h3>Nächste Termine</h3>");
+  if (termine.length) {
+    for (const t of termine) {
+      b.push("<div class=\"termin\" data-aktion=\"termin-menue\" data-datum=\"" + iso(t.datum) + "\" data-titel=\"" + esc(t.titel) + "\">" +
+        "<span class=\"wann\">" + kurzDatum(t.datum) + "</span>" +
+        "<span class=\"titel\">" + verlinke(t.titel) +
+        (t.zeit ? " <span class=\"zeit\">" + esc(t.zeit) + "</span>" : "") + "</span></div>");
+    }
+  } else b.push("<div class=\"leer\">Keine Termine.</div>");
+  b.push("</div>");
+
+  // Ziele fuer morgen
+  const lz = letzteZiele(tagebuchEintraege());
+  if (lz) {
+    b.push("<div class=\"karte\"><h3>Ziele aus dem Tagebuch <span class=\"zusatz\">vom " + kurzDatum(lz.datum) + "</span></h3>");
+    for (const z of lz.ziele) b.push("<div class=\"todo\"><div class=\"inhalt\"><div class=\"text\">" + verlinke(z.replace(/^[-*]\s*/, "")) + "</div></div></div>");
+    b.push("</div>");
+  }
+
+  // Alle Todos nach Liste
+  const listen = todoListen(todoDateien());
+  b.push("<div class=\"karte\"><h3>Alle Todos</h3>");
+  const alle = alleTodos().filter((t) => !t.done);
+  for (const l of listen) {
+    const eigene = alle.filter((t) => t.datei === l.datei);
+    b.push("<details class=\"liste-details\"><summary><span class=\"pfeil\">▶</span>" + esc(l.liste) +
+      "<span class=\"anzahl\">" + eigene.length + "</span></summary>");
+    for (const sek of l.sektionen) {
+      const st = eigene.filter((t) => t.sektion === sek);
+      if (!st.length) continue;
+      b.push("<div class=\"sektionstitel\">" + esc(sek) + "</div>");
+      b.push(st.map((t) => todoZeileHtml(t, false)).join(""));
+    }
+    b.push("</details>");
+  }
+  b.push("</div>");
+
+  $("#blatt-heute").innerHTML = b.join("");
+}
+
+// ----------------------------------------------------------- Kalender
+
+function renderKalender() {
+  const h = heute();
+  if (!kalMonat) kalMonat = makeDate(h.getUTCFullYear(), h.getUTCMonth() + 1, 1);
+  if (!kalTag) kalTag = h;
+  const cfgS = parseSchichten(text("Dashboard/Schichten.md"));
+  const termine = parseKalender(text("Dashboard/Kalender.md"));
+  const todos = alleTodos().filter((t) => !t.done && t.due);
+
+  const proTag = {};
+  for (const t of termine) (proTag[iso(t.datum)] = proTag[iso(t.datum)] || []).push(t);
+  const todosTag = {};
+  for (const t of todos) (todosTag[iso(t.due)] = todosTag[iso(t.due)] || []).push(t);
+
+  const b = [];
+  b.push("<div class=\"kalkopf\"><button data-aktion=\"kal-monat\" data-schritt=\"-1\">‹</button>" +
+    "<span class=\"monat\">" + MONATE[kalMonat.getUTCMonth()] + " " + kalMonat.getUTCFullYear() + "</span>" +
+    "<button data-aktion=\"kal-monat\" data-schritt=\"1\">›</button></div>");
+  b.push("<div class=\"kalgitter\">");
+  for (const w of WOCHENTAGE) b.push("<div class=\"wt\">" + w + "</div>");
+  const start = addDays(kalMonat, -weekday(kalMonat));
+  for (let i = 0; i < 42; i++) {
+    const d = addDays(start, i);
+    const fremd = d.getUTCMonth() !== kalMonat.getUTCMonth();
+    const s = schichtAm(d, cfgS);
+    const cls = ["kaltag", fremd ? "fremd" : "", gleich(d, h) ? "heute" : "",
+      gleich(d, kalTag) ? "gewaehlt" : ""].filter(Boolean).join(" ");
+    let punkte = "";
+    if ((proTag[iso(d)] || []).length) punkte += "<span class=\"punkt\"></span>";
+    if ((todosTag[iso(d)] || []).length) punkte += "<span class=\"punkt fael\"></span>";
+    b.push("<button class=\"" + cls + "\" data-aktion=\"kal-tag\" data-datum=\"" + iso(d) + "\">" +
+      "<span>" + d.getUTCDate() + "</span>" +
+      "<span class=\"schichtk\">" + (s ? esc(s.name[0]) : "") + "</span>" +
+      "<span class=\"punkte\">" + punkte + "</span></button>");
+  }
+  b.push("</div>");
+
+  const s = schichtAm(kalTag, cfgS);
+  b.push("<div class=\"karte\" style=\"margin-top:12px\"><h3>" + esc(kurzDatum(kalTag)) +
+    " <span class=\"zusatz\">" + esc(s ? s.name + " " + s.von + " bis " + s.bis : "frei") + "</span></h3>");
+  const tt = proTag[iso(kalTag)] || [];
+  const td = todosTag[iso(kalTag)] || [];
+  if (!tt.length && !td.length) b.push("<div class=\"leer\">Nichts an dem Tag.</div>");
+  for (const t of tt) {
+    b.push("<div class=\"termin\" data-aktion=\"termin-menue\" data-datum=\"" + iso(t.datum) + "\" data-titel=\"" + esc(t.titel) + "\">" +
+      "<span class=\"wann\">" + (t.zeit ? esc(t.zeit) : "Termin") + "</span>" +
+      "<span class=\"titel\">" + verlinke(t.titel) +
+      (t.notiz ? " <span class=\"zeit\">" + verlinke(t.notiz) + "</span>" : "") + "</span></div>");
+  }
+  if (td.length) {
+    b.push("<div class=\"sektionstitel\">Fällige Todos</div>");
+    b.push(td.map((t) => todoZeileHtml(t, false)).join(""));
+  }
+  b.push("<div style=\"margin-top:10px\"><button class=\"knopf zweit\" data-aktion=\"termin-neu\">+ Termin am " + kurzDatum(kalTag) + "</button></div>");
+  b.push("</div>");
+
+  $("#blatt-kalender").innerHTML = b.join("");
+}
+
+// ----------------------------------------------------------- Tagebuch
+
+function renderTagebuch() {
+  if (!tbTag) tbTag = heute();
+  const pfad = "Tagebuch/" + punktDatum(tbTag) + ".md";
+  const vorhanden = tagebuchNamen.includes(punktDatum(tbTag) + ".md");
+  const inhalt = ablage.has(pfad) ? text(pfad) : null;
+
+  const b = [];
+  b.push("<div class=\"tbnav\"><button data-aktion=\"tb-tag\" data-schritt=\"-1\">‹</button>" +
+    "<span class=\"datum\">" + langDatum(tbTag) + "</span>" +
+    "<button data-aktion=\"tb-tag\" data-schritt=\"1\"" + (gleich(tbTag, heute()) ? " disabled" : "") + ">›</button></div>");
+
+  b.push("<div class=\"karte\"><h3>Eintrag</h3>");
+  if (inhalt !== null && inhalt.trim()) {
+    b.push("<pre class=\"tbtext\">" + esc(nl(inhalt)) + "</pre>");
+  } else if (vorhanden && inhalt === null) {
+    b.push("<div class=\"leer\">Eintrag existiert, aber noch nicht geladen. <button class=\"knopf zweit\" data-aktion=\"tb-laden\" style=\"margin-top:8px\">Laden</button></div>");
+  } else {
+    b.push("<div class=\"leer\">Noch kein Eintrag für diesen Tag.</div>");
+  }
+  b.push("</div>");
+
+  b.push("<div class=\"karte\"><h3>Ergänzen</h3>" +
+    "<textarea id=\"tbtext\" placeholder=\"Was war heute? [wort] wird zum Wikilink, Schlagworte verlinken sich von selbst.\"></textarea>" +
+    "<button class=\"knopf\" data-aktion=\"tb-speichern\">Eintragen</button>" +
+    "<div class=\"hilfetext\" style=\"margin-top:8px\">Wird angehängt, nie überschrieben. Genau wie am PC.</div></div>");
+
+  $("#blatt-tagebuch").innerHTML = b.join("");
+}
+
+// ------------------------------------------------------------- Sozial
+
+function renderSozial() {
+  const daten = parseSozial(text("Dashboard/Sozial.md"));
+  const woche = sozialWoche(daten);
+  const bilanz = sozialBilanz(daten);
+  const werk = sozialWerkzeug();
+  const b = [];
+
+  b.push("<div class=\"karte\"><h3>Diese Woche</h3>" +
+    "<div class=\"gross\">" + woche.tage + " von " + woche.ziel + " Tagen</div>" +
+    "<div class=\"balken\"><div class=\"voll\" style=\"width:" + Math.min(100, Math.round(woche.tage / woche.ziel * 100)) + "%\"></div></div>" +
+    (woche.heute ? "<div class=\"hinweis gruen\">Heute schon geübt. Beweis gesammelt.</div>" : "") +
+    "</div>");
+
+  const aktuelle = daten.stufen.find((s) => s.stufe === daten.stufe);
+  b.push("<div class=\"karte\"><h3>Aktuelle Stufe <span class=\"zusatz\">Stufe " + daten.stufe + "</span></h3>");
+  if (aktuelle) {
+    b.push("<div><strong>" + esc(aktuelle.uebung) + "</strong></div>" +
+      (aktuelle.hinweis ? "<div class=\"hilfetext\" style=\"margin-top:4px\">" + esc(aktuelle.hinweis) + "</div>" : ""));
+  }
+  if (sozialBereitFuerMehr(daten)) {
+    b.push("<div class=\"hinweis gruen\">Die letzten drei Übungen waren leicht. Zeit für die nächste Stufe.</div>");
+  }
+  if (daten.plan) b.push("<div class=\"hinweis\">" + esc(daten.plan) + "</div>");
+  b.push("<details class=\"liste-details\" style=\"margin-top:8px\"><summary><span class=\"pfeil\">▶</span>Alle Stufen</summary>");
+  for (const s of daten.stufen) {
+    b.push("<div class=\"stufenzeile" + (s.stufe === daten.stufe ? " aktivstufe" : "") + "\">" +
+      "<span class=\"nr\">" + s.stufe + "</span><span class=\"uebung\">" + esc(s.uebung) + "</span>" +
+      (s.stufe !== daten.stufe ? "<button class=\"waehlen\" data-aktion=\"sozial-stufe\" data-stufe=\"" + s.stufe + "\">wählen</button>" : "") +
+      "</div>");
+  }
+  b.push("</details></div>");
+
+  b.push("<div class=\"karte\"><h3>Übung eintragen</h3>");
+  b.push("<label class=\"feld\">Übung</label><select id=\"sozial-kuerzel\">");
+  for (const s of daten.stufen) {
+    b.push("<option value=\"" + esc(s.kuerzel) + "\"" + (s.stufe === daten.stufe ? " selected" : "") + ">" +
+      s.stufe + " · " + esc(s.uebung) + "</option>");
+  }
+  b.push("<option value=\"frei\">Freie Übung</option></select>");
+  const zahlOpts = (id) => {
+    let o = "<select id=\"" + id + "\"><option value=\"-\">nicht erfasst</option>";
+    for (let i = 0; i <= 10; i++) o += "<option value=\"" + i + "\">" + i + "</option>";
+    return o + "</select>";
+  };
+  b.push("<div class=\"zeile2\"><div><label class=\"feld\">Vorher befürchtet (0 bis 10)</label>" + zahlOpts("sozial-vorher") + "</div>" +
+    "<div><label class=\"feld\">Nachher wirklich (0 bis 10)</label>" + zahlOpts("sozial-nachher") + "</div></div>");
+  b.push("<label class=\"feld\">Notiz, optional</label><input type=\"text\" id=\"sozial-notiz\">");
+  b.push("<button class=\"knopf\" data-aktion=\"sozial-log\">Eintragen</button></div>");
+
+  if (bilanz.n) {
+    b.push("<div class=\"karte\"><h3>Erwartung gegen Realität <span class=\"zusatz\">" + bilanz.n + " Übungen</span></h3>" +
+      "<div class=\"bilanzzeile\">" +
+      "<div class=\"wert\"><div class=\"zahl\">" + bilanz.vorher.toFixed(1) + "</div><div class=\"label\">befürchtet</div></div>" +
+      "<div class=\"wert\"><div class=\"zahl\">" + bilanz.nachher.toFixed(1) + "</div><div class=\"label\">erlebt</div></div>" +
+      "<div class=\"wert\"><div class=\"zahl\">" + bilanz.leichter + "×</div><div class=\"label\">leichter als gedacht</div></div>" +
+      "</div></div>");
+  }
+
+  b.push("<div class=\"karte werk\"><h3>Werkzeug der Woche</h3>" +
+    "<div><strong>" + esc(werk.name) + "</strong></div>" +
+    "<div class=\"tu\">" + esc(werk.tu) + "</div>" +
+    "<div class=\"warum\">" + esc(werk.warum) + "</div>" +
+    "<div class=\"quelle\">" + esc(werk.quelle) + "</div></div>");
+
+  const letzte = daten.log.slice(-6).reverse();
+  if (letzte.length) {
+    b.push("<div class=\"karte\"><h3>Letzte Übungen</h3>");
+    for (const x of letzte) {
+      b.push("<div class=\"logzeile\"><div class=\"kopf\"><span class=\"datum\">" + kurzDatum(x.datum) + "</span>" +
+        "<span>" + esc(x.kuerzel) + "</span>" +
+        "<span class=\"zahlen\">" + (x.vorher === null ? "-" : x.vorher) + " → " + (x.nachher === null ? "-" : x.nachher) + "</span></div>" +
+        (x.notiz ? "<div class=\"notiz\">" + esc(x.notiz) + "</div>" : "") + "</div>");
+    }
+    b.push("</div>");
+  }
+
+  $("#blatt-sozial").innerHTML = b.join("");
+}
+
+// ------------------------------------------------------------ Sheets
+
+function todoMenue(datei, raw) {
+  const t = alleTodos().find((x) => x.datei === datei && x.raw === raw);
+  if (!t) { toast("Todo nicht mehr da, lade neu", true); aktualisieren(true); return; }
+  sheetOeffnen("<div class=\"griff\"></div><h2>" + esc(t.text) + "</h2>" +
+    "<button class=\"aktion\" data-aktion=\"todo-erledigt\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wieder=\"\">Erledigt<small>wandert ins Archiv</small></button>" +
+    "<button class=\"aktion\" data-aktion=\"todo-erledigt\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wieder=\"morgen\">Erledigt, wieder morgen</button>" +
+    "<button class=\"aktion\" data-aktion=\"todo-erledigt\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wieder=\"woche\">Erledigt, wieder nächste Woche</button>" +
+    "<button class=\"aktion\" data-aktion=\"todo-erledigt\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wieder=\"monat\">Erledigt, wieder nächsten Monat</button>" +
+    "<button class=\"aktion\" data-aktion=\"todo-schieben\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wann=\"morgen\">Auf morgen verschieben</button>" +
+    "<button class=\"aktion\" data-aktion=\"todo-schieben\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wann=\"woche\">Auf nächste Woche verschieben</button>" +
+    "<button class=\"aktion\" data-aktion=\"sheet-zu\">Abbrechen</button>");
+}
+
+function terminMenue(datum, titel) {
+  sheetOeffnen("<div class=\"griff\"></div><h2>" + esc(titel) + "</h2>" +
+    "<div class=\"hilfetext\" style=\"margin-bottom:10px\">" + esc(kurzDatum(parseDate(datum))) + "</div>" +
+    "<button class=\"aktion\" data-aktion=\"termin-schieben\" data-datum=\"" + esc(datum) + "\" data-titel=\"" + esc(titel) + "\" data-wann=\"morgen\">Auf morgen verschieben</button>" +
+    "<button class=\"aktion\" data-aktion=\"termin-schieben\" data-datum=\"" + esc(datum) + "\" data-titel=\"" + esc(titel) + "\" data-wann=\"woche\">Auf nächste Woche verschieben</button>" +
+    "<button class=\"aktion rot\" data-aktion=\"termin-loeschen\" data-datum=\"" + esc(datum) + "\" data-titel=\"" + esc(titel) + "\">Termin löschen</button>" +
+    "<button class=\"aktion\" data-aktion=\"sheet-zu\">Abbrechen</button>");
+}
+
+function neuesTodoSheet() {
+  const listen = todoListen(todoDateien());
+  if (!listen.length) { toast("Keine Todo-Listen geladen", true); return; }
+  let b = "<div class=\"griff\"></div><h2>Neues Todo</h2>";
+  b += "<label class=\"feld\">Liste</label><select id=\"nt-liste\">";
+  for (const l of listen) b += "<option value=\"" + esc(l.datei) + "\">" + esc(l.liste) + "</option>";
+  b += "</select>";
+  b += "<label class=\"feld\">Kategorie</label><select id=\"nt-sektion\"></select>";
+  b += "<input type=\"text\" id=\"nt-neuekat\" placeholder=\"Name der neuen Kategorie\" style=\"display:none\">";
+  b += "<label class=\"feld\">Todo</label><input type=\"text\" id=\"nt-text\" placeholder=\"Was ist zu tun?\">";
+  b += "<div class=\"zeile2\"><div><label class=\"feld\">Fällig</label><input type=\"date\" id=\"nt-due\" value=\"" + iso(heute()) + "\"></div>" +
+    "<div><label class=\"feld\">Priorität</label><select id=\"nt-prio\"><option value=\"\">keine</option><option value=\"hoch\">hoch</option><option value=\"mittel\">mittel</option><option value=\"niedrig\">niedrig</option></select></div></div>";
+  b += "<div class=\"check\"><input type=\"checkbox\" id=\"nt-termin\"><label for=\"nt-termin\">Auch als Termin in den Kalender</label></div>";
+  b += "<button class=\"knopf\" data-aktion=\"todo-anlegen\">Anlegen</button>";
+  sheetOeffnen(b);
+  const fuelleSektionen = () => {
+    const datei = $("#nt-liste").value;
+    const l = listen.find((x) => x.datei === datei);
+    const s = $("#nt-sektion");
+    s.innerHTML = l.sektionen.map((x) => "<option value=\"" + esc(x) + "\">" + esc(x) + "</option>").join("") +
+      "<option value=\"__neu__\">+ Neue Kategorie</option>";
+    $("#nt-neuekat").style.display = "none";
+  };
+  fuelleSektionen();
+  $("#nt-liste").addEventListener("change", fuelleSektionen);
+  $("#nt-sektion").addEventListener("change", () => {
+    $("#nt-neuekat").style.display = $("#nt-sektion").value === "__neu__" ? "block" : "none";
+  });
+}
+
+function neuerTerminSheet(datum) {
+  sheetOeffnen("<div class=\"griff\"></div><h2>Neuer Termin</h2>" +
+    "<label class=\"feld\">Titel</label><input type=\"text\" id=\"tm-titel\">" +
+    "<div class=\"zeile2\"><div><label class=\"feld\">Datum</label><input type=\"date\" id=\"tm-datum\" value=\"" + esc(datum) + "\"></div>" +
+    "<div><label class=\"feld\">Uhrzeit, optional</label><input type=\"time\" id=\"tm-zeit\"></div></div>" +
+    "<label class=\"feld\">Notiz, optional</label><input type=\"text\" id=\"tm-notiz\">" +
+    "<button class=\"knopf\" data-aktion=\"termin-anlegen\">Anlegen</button>");
+}
+
+function einstellungenSheet(erzwungen) {
+  sheetOeffnen("<div class=\"griff\"></div><h2>Einstellungen</h2>" +
+    (erzwungen ? "<div class=\"hinweis\" style=\"margin-bottom:10px\">Damit die App an den Vault kommt, braucht sie einen GitHub-Token. Anleitung steht in der ANLEITUNG.md im Repo.</div>" : "") +
+    "<label class=\"feld\">GitHub-Token (fine-grained, nur Vault-Repo, Contents read und write)</label>" +
+    "<input type=\"password\" id=\"es-token\" value=\"" + esc(cfg.token) + "\" autocomplete=\"off\">" +
+    "<div class=\"zeile2\"><div><label class=\"feld\">Besitzer</label><input type=\"text\" id=\"es-owner\" value=\"" + esc(cfg.owner) + "\"></div>" +
+    "<div><label class=\"feld\">Repo</label><input type=\"text\" id=\"es-repo\" value=\"" + esc(cfg.repo) + "\"></div></div>" +
+    "<label class=\"feld\">Branch</label><input type=\"text\" id=\"es-branch\" value=\"" + esc(cfg.branch) + "\">" +
+    "<button class=\"knopf\" data-aktion=\"einstellungen-speichern\">Speichern und verbinden</button>" +
+    "<div style=\"height:8px\"></div>" +
+    "<button class=\"knopf zweit\" data-aktion=\"cache-leeren\">Zwischenspeicher leeren</button>");
+}
+
+// ----------------------------------------------------------- Aktionen
+
+async function mitToast(arbeit, meldung) {
+  try {
+    await arbeit();
+    renderAlles();
+    if (meldung) toast(meldung);
+  } catch (e) {
+    if (e.keinToken) einstellungenSheet(true);
+    else toast(e.message, true);
+  }
+}
+
+const AKTIONEN = {
+  "sheet-zu": () => sheetZu(),
+  "tab": (el) => {
+    aktTab = el.dataset.tab;
+    document.querySelectorAll(".blatt").forEach((x) => x.classList.toggle("aktiv", x.id === "blatt-" + aktTab));
+    document.querySelectorAll("nav.tabs button").forEach((x) => x.classList.toggle("aktiv", x.dataset.tab === aktTab));
+    $("#fab").classList.toggle("sichtbar", aktTab === "heute");
+    window.scrollTo(0, 0);
+  },
+  "sync": () => aktualisieren(false),
+  "einstellungen": () => einstellungenSheet(false),
+  "einstellungen-speichern": async () => {
+    cfg.token = $("#es-token").value.trim();
+    cfg.owner = $("#es-owner").value.trim() || cfg.owner;
+    cfg.repo = $("#es-repo").value.trim() || cfg.repo;
+    cfg.branch = $("#es-branch").value.trim() || "main";
+    cfgSpeichern();
+    sheetZu();
+    ablage = new Map();
+    await aktualisieren(false);
+  },
+  "cache-leeren": () => {
+    localStorage.removeItem(CACHE_KEY);
+    ablage = new Map(); todoNamen = []; tagebuchNamen = []; stand = null;
+    sheetZu(); renderAlles(); toast("Zwischenspeicher geleert");
+  },
+
+  "todo-menue": (el) => todoMenue(el.dataset.datei, el.dataset.raw),
+  "todo-erledigt": async (el) => {
+    const { datei, raw, wieder } = el.dataset;
+    sheetZu();
+    await mitToast(() => transaktion(
+      ["Dashboard/" + datei, "Dashboard/Erledigt.md"],
+      (texte) => {
+        const r = todoArchivieren(texte["Dashboard/" + datei],
+          texte["Dashboard/Erledigt.md"], datei, raw, wieder);
+        return {
+          ["Dashboard/" + datei]: wieder ? r.wiederText : r.todosText,
+          "Dashboard/Erledigt.md": r.erledigtText,
+        };
+      },
+      "Mobil: Todo erledigt" + (wieder ? ", wieder " + WIEDER[wieder][0] : "")),
+    wieder ? "Erledigt, kommt " + WIEDER[wieder][0] + " wieder" : "Erledigt und archiviert");
+  },
+  "todo-schieben": async (el) => {
+    const { datei, raw, wann } = el.dataset;
+    sheetZu();
+    await mitToast(() => transaktion(["Dashboard/" + datei],
+      (texte) => ({ ["Dashboard/" + datei]: todoVerschieben(texte["Dashboard/" + datei], raw, wann).text }),
+      "Mobil: Todo verschoben auf " + VERSCHIEBEN[wann][0]),
+    "Verschoben auf " + VERSCHIEBEN[wann][0]);
+  },
+  "fab": () => neuesTodoSheet(),
+  "todo-anlegen": async () => {
+    const datei = $("#nt-liste").value;
+    let sektion = $("#nt-sektion").value;
+    const neueKat = $("#nt-neuekat").value.trim();
+    const todoText = $("#nt-text").value.trim();
+    const due = $("#nt-due").value;
+    const prio = $("#nt-prio").value;
+    const auchTermin = $("#nt-termin").checked;
+    if (!todoText) { toast("Todo ist leer", true); return; }
+    if (sektion === "__neu__" && !neueKat) { toast("Kategoriename fehlt", true); return; }
+    sheetZu();
+    const pfade = ["Dashboard/" + datei];
+    if (auchTermin && due) pfade.push("Dashboard/Kalender.md");
+    await mitToast(() => transaktion(pfade, (texte) => {
+      let t = texte["Dashboard/" + datei];
+      if (sektion === "__neu__") {
+        const r = sektionAnlegen(t, neueKat);
+        t = r.text; sektion = r.name;
+      }
+      const out = { ["Dashboard/" + datei]: todoAnlegen(t, sektion, todoText, prio, due).text };
+      if (auchTermin && due) {
+        out["Dashboard/Kalender.md"] = kalenderAnlegen(texte["Dashboard/Kalender.md"], due, todoText, "", "").text;
+      }
+      return out;
+    }, "Mobil: Todo angelegt"), "Todo angelegt");
+  },
+
+  "habit": async (el) => {
+    const habit = el.dataset.habit;
+    const an = !el.classList.contains("an");
+    await mitToast(() => transaktion(["Dashboard/Habits.md"],
+      (texte) => ({ "Dashboard/Habits.md": habitSetzen(texte["Dashboard/Habits.md"], habit, an, iso(heute())).text }),
+      "Mobil: Habit " + habit + (an ? "" : " weg")));
+  },
+  "supp": async (el) => {
+    const supp = el.dataset.supp;
+    const an = !el.classList.contains("an");
+    await mitToast(() => transaktion(["Dashboard/Gesundheit.md"],
+      (texte) => ({ "Dashboard/Gesundheit.md": gesundheitSupp(texte["Dashboard/Gesundheit.md"], supp, an, iso(heute())).text }),
+      "Mobil: Supplement " + supp + (an ? "" : " weg")));
+  },
+  "wasser": async (el) => {
+    const wert = parseInt(el.dataset.wert, 10);
+    await mitToast(() => transaktion(["Dashboard/Gesundheit.md"],
+      (texte) => ({ "Dashboard/Gesundheit.md": gesundheitLog(texte["Dashboard/Gesundheit.md"], "wasser", wert, "add", iso(heute())).text }),
+      "Mobil: Wasser"));
+  },
+
+  "kal-monat": (el) => { kalMonat = plusMonat(kalMonat, parseInt(el.dataset.schritt, 10)); renderKalender(); },
+  "kal-tag": (el) => {
+    kalTag = parseDate(el.dataset.datum);
+    if (kalTag.getUTCMonth() !== kalMonat.getUTCMonth()) {
+      kalMonat = makeDate(kalTag.getUTCFullYear(), kalTag.getUTCMonth() + 1, 1);
+    }
+    renderKalender();
+  },
+  "termin-neu": () => neuerTerminSheet(iso(kalTag || heute())),
+  "termin-anlegen": async () => {
+    const titel = $("#tm-titel").value.trim();
+    const datum = $("#tm-datum").value;
+    const zeit = $("#tm-zeit").value;
+    const notiz = $("#tm-notiz").value.trim();
+    if (!titel) { toast("Titel fehlt", true); return; }
+    sheetZu();
+    await mitToast(() => transaktion(["Dashboard/Kalender.md"],
+      (texte) => ({ "Dashboard/Kalender.md": kalenderAnlegen(texte["Dashboard/Kalender.md"], datum, titel, zeit, notiz).text }),
+      "Mobil: Termin angelegt"), "Termin angelegt");
+  },
+  "termin-menue": (el) => terminMenue(el.dataset.datum, el.dataset.titel),
+  "termin-loeschen": async (el) => {
+    const { datum, titel } = el.dataset;
+    sheetZu();
+    await mitToast(() => transaktion(["Dashboard/Kalender.md"],
+      (texte) => ({ "Dashboard/Kalender.md": terminLoeschen(texte["Dashboard/Kalender.md"], datum, titel).text }),
+      "Mobil: Termin geloescht"), "Termin gelöscht");
+  },
+  "termin-schieben": async (el) => {
+    const { datum, titel, wann } = el.dataset;
+    sheetZu();
+    await mitToast(() => transaktion(["Dashboard/Kalender.md"],
+      (texte) => ({ "Dashboard/Kalender.md": terminVerschieben(texte["Dashboard/Kalender.md"], datum, titel, wann).text }),
+      "Mobil: Termin verschoben"), "Termin verschoben auf " + VERSCHIEBEN[wann][0]);
+  },
+
+  "tb-tag": (el) => { tbTag = addDays(tbTag, parseInt(el.dataset.schritt, 10)); renderTagebuch(); },
+  "tb-laden": async () => {
+    await mitToast(() => ladeDatei("Tagebuch/" + punktDatum(tbTag) + ".md"));
+  },
+  "tb-speichern": async () => {
+    const eingabe = $("#tbtext").value.trim();
+    if (!eingabe) { toast("Eintrag ist leer", true); return; }
+    const tag = tbTag;
+    const pfad = "Tagebuch/" + punktDatum(tag) + ".md";
+    await mitToast(async () => {
+      const vorhanden = await alleNotizNamen();
+      const worte = parseSchlagworte(text("Dashboard/Schlagworte.md"));
+      const stubs = [];
+      await transaktion([pfad], (texte) => {
+        const kopie = new Map(vorhanden);
+        const r = tagebuchAnlegen(texte[pfad], eingabe, tag, kopie, worte);
+        stubs.length = 0;
+        stubs.push.apply(stubs, r.angelegt);
+        return { [pfad]: r.content };
+      }, "Mobil: Tagebuch " + iso(tag));
+      for (const name of stubs) {
+        try { await putDatei(name + ".md", "", "Mobil: Notiz " + name + " angelegt"); }
+        catch (e) { /* Stub gibt es wohl schon, egal */ }
+      }
+      if (!tagebuchNamen.includes(punktDatum(tag) + ".md")) {
+        tagebuchNamen.push(punktDatum(tag) + ".md");
+        tagebuchNamen.sort();
+      }
+      cacheSpeichern();
+      $("#tbtext").value = "";
+      return stubs;
+    }, "Eingetragen");
+  },
+
+  "sozial-log": async () => {
+    const kuerzel = $("#sozial-kuerzel").value;
+    const vorher = $("#sozial-vorher").value;
+    const nachher = $("#sozial-nachher").value;
+    const notiz = $("#sozial-notiz").value;
+    await mitToast(() => transaktion(["Dashboard/Sozial.md", "Dashboard/Habits.md"],
+      (texte) => {
+        const daten = parseSozial(texte["Dashboard/Sozial.md"]);
+        const bekannt = new Set(daten.stufen.map((x) => x.kuerzel));
+        bekannt.add("frei");
+        const r = sozialLog(texte["Dashboard/Sozial.md"], kuerzel, vorher, nachher, notiz, iso(heute()), bekannt);
+        const h = habitSetzen(texte["Dashboard/Habits.md"], "sozial", true, iso(heute()));
+        return { "Dashboard/Sozial.md": r.text, "Dashboard/Habits.md": h.text };
+      }, "Mobil: Soziale Uebung " + kuerzel), "Eingetragen. Beweis gesammelt.");
+  },
+  "sozial-stufe": async (el) => {
+    const stufe = parseInt(el.dataset.stufe, 10);
+    await mitToast(() => transaktion(["Dashboard/Sozial.md"],
+      (texte) => {
+        const daten = parseSozial(texte["Dashboard/Sozial.md"]);
+        return { "Dashboard/Sozial.md": sozialStufeSetzen(texte["Dashboard/Sozial.md"], stufe, daten.stufen.map((x) => x.stufe)).text };
+      }, "Mobil: Sozial-Stufe " + stufe), "Stufe " + stufe + " gesetzt");
+  },
+};
+
+document.addEventListener("click", (ev) => {
+  const el = ev.target.closest("[data-aktion]");
+  if (!el) return;
+  if (el.tagName === "A") return;
+  const fn = AKTIONEN[el.dataset.aktion];
+  if (fn) { ev.preventDefault(); fn(el); }
+});
+$("#schleier").addEventListener("click", (ev) => {
+  if (ev.target === $("#schleier")) sheetZu();
+});
+
+// ------------------------------------------------------------- Start
+
+(function start() {
+  const hatCache = cacheLaden();
+  renderAlles();
+  AKTIONEN.tab({ dataset: { tab: "heute" } });
+  if (!cfg.token) einstellungenSheet(true);
+  else aktualisieren(hatCache);
+})();
+// ===APP-END===
+
+</script>
+</body>
+</html>
