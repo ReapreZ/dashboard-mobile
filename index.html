@@ -166,7 +166,7 @@ main { padding: 14px 14px 8px; max-width: 640px; margin: 0 auto; }
 .tbnav button { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--rand); background: var(--karte); color: var(--text); font-size: 16px; }
 
 /* Formulare */
-textarea, input[type=text], input[type=password], input[type=date], input[type=time], select {
+textarea, input[type=text], input[type=password], input[type=date], input[type=time], input[type=number], select {
   width: 100%; background: var(--karte2); color: var(--text);
   border: 1px solid var(--rand); border-radius: 10px; padding: 11px 12px;
   font-size: 16px; font-family: inherit; margin-bottom: 9px;
@@ -210,6 +210,10 @@ label.feld { display: block; font-size: 12.5px; color: var(--leise); margin-bott
 .werk .tu { margin: 6px 0; }
 .werk .warum { color: var(--leise); font-size: 14px; }
 .werk .quelle { color: var(--leise); font-size: 12px; margin-top: 6px; font-style: italic; }
+
+/* Training */
+.trsaetze { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 2px; }
+.trsatz { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--karte2); border: 1px solid var(--rand); color: var(--ok); font-weight: 600; }
 
 /* Tabbar */
 nav.tabs {
@@ -295,6 +299,7 @@ nav.tabs button.aktiv { color: var(--akzent); }
   <div class="blatt aktiv" id="blatt-heute"></div>
   <div class="blatt" id="blatt-kalender"></div>
   <div class="blatt" id="blatt-tagebuch"></div>
+  <div class="blatt" id="blatt-training"></div>
   <div class="blatt" id="blatt-sozial"></div>
 </main>
 <button class="fab sichtbar" id="fab" data-aktion="fab" aria-label="Neues Todo">+</button>
@@ -310,6 +315,10 @@ nav.tabs button.aktiv { color: var(--akzent); }
   <button data-aktion="tab" data-tab="tagebuch">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
     Tagebuch
+  </button>
+  <button data-aktion="tab" data-tab="training">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/></svg>
+    Training
   </button>
   <button data-aktion="tab" data-tab="sozial">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -1597,6 +1606,231 @@ function tagebuchAnlegen(altText, text, tag, vorhanden, worte) {
   return { content: teile.join("\n"), angelegt, neuDatei: true };
 }
 
+// ----------------------------------------------------------- Training
+
+const TRAINING_LOG_RE = /^\s*(\d{4}-\d{2}-\d{2})\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*(.*?)\s*$/;
+const TRAINING_SATZ_RE = /^(?:(\d+(?:\.\d+)?)x)?(\d+)$/;
+
+function trainingZeilen(text) {
+  let zeilen = text ? zeilenAus(text) : [];
+  if (!zeilen.length || (zeilen.length === 1 && !zeilen[0])) {
+    zeilen = ["# Training", "", "---", "", "## Tage", "", "## Übungen", "", "## Log"];
+  }
+  return zeilen;
+}
+
+function trainingDatenzeilen(zeilen, i, ende) {
+  const raus = [];
+  let komm = false;
+  for (let j = i + 1; j < ende; j++) {
+    const s = zeilen[j].trim();
+    if (komm) { if (s.includes("-->")) komm = false; continue; }
+    if (s.startsWith("<!--")) { if (!s.includes("-->")) komm = true; continue; }
+    if (!s || s === "---") continue;
+    raus.push(j);
+  }
+  return raus;
+}
+
+function trainingSaetzeParsen(text) {
+  const saetze = [];
+  for (const teil of String(text == null ? "" : text).split(",")) {
+    const m = teil.trim().match(TRAINING_SATZ_RE);
+    if (!m) continue;
+    saetze.push({ gewicht: m[1] ? parseFloat(m[1]) : null, wdh: parseInt(m[2], 10) });
+  }
+  return saetze;
+}
+
+function trainingGewichtText(g) {
+  // Python "%g" % round(g, 2)
+  return String(Math.round(g * 100) / 100);
+}
+
+function trainingSatzText(s) {
+  if (s.gewicht === null) return String(s.wdh);
+  return trainingGewichtText(s.gewicht) + "x" + s.wdh;
+}
+
+function trainingLogzeile(datum, tag, uebung, saetze) {
+  return datum + " | " + tag + " | " + uebung + " | " + saetze.map(trainingSatzText).join(", ");
+}
+
+function parseTraining(text) {
+  const ab = abschnitte(text);
+  const tage = [];
+  for (const z of ab["Tage"] || []) {
+    const name = z.trim();
+    if (name && !tage.some((t) => t.toLowerCase() === name.toLowerCase())) tage.push(name);
+  }
+  const uebungen = {};
+  for (const t of tage) uebungen[t] = [];
+  for (const z of ab["Übungen"] || []) {
+    if (!z.includes("|")) continue;
+    const i = z.indexOf("|");
+    const tag = z.slice(0, i).trim(), name = z.slice(i + 1).trim();
+    const ziel = tage.find((t) => t.toLowerCase() === tag.toLowerCase());
+    if (!ziel || !name) continue;
+    if (!uebungen[ziel].some((u) => u.toLowerCase() === name.toLowerCase())) uebungen[ziel].push(name);
+  }
+  const log = [];
+  for (const z of ab["Log"] || []) {
+    const m = z.match(TRAINING_LOG_RE);
+    if (!m) continue;
+    const d = parseDateIso(m[1]);
+    if (!d) continue;
+    const saetze = trainingSaetzeParsen(m[4]);
+    if (!saetze.length) continue;
+    log.push({ datum: d, tag: m[2], uebung: m[3], saetze });
+  }
+  log.sort((a, b) => a.datum - b.datum);
+  return { tage, uebungen, log };
+}
+
+function trainingName(name, maxlen, was) {
+  name = String(name == null ? "" : name).trim().replace(/\|/g, "/").replace(/\s{2,}/g, " ");
+  if (!name) throw new Error("Leerer " + was);
+  if (name.length > maxlen) throw new Error(was + " zu lang");
+  if (name.startsWith("#")) throw new Error("Ungueltiger Name: " + name);
+  return name;
+}
+
+function trainingTagFinden(daten, tag) {
+  const ziel = daten.tage.find((t) => t.toLowerCase() === String(tag == null ? "" : tag).trim().toLowerCase());
+  if (!ziel) throw new Error("Tag gibt es nicht: " + tag);
+  return ziel;
+}
+
+function trainingTagAnlegen(text, name) {
+  name = trainingName(name, 40, "Tagname");
+  const daten = parseTraining(text);
+  for (const t of daten.tage) {
+    if (t.toLowerCase() === name.toLowerCase()) return { text: nl(text), name: t };
+  }
+  const zeilen = trainingZeilen(text);
+  sozialAnhaengen(zeilen, "Tage", [name]);
+  return { text: joinZeilen(zeilen), name };
+}
+
+function trainingTagOben(text, name) {
+  const zeilen = trainingZeilen(text);
+  const i = sektionIndex(zeilen, "Tage");
+  if (i === null) throw new Error("Tag nicht gefunden: " + name);
+  const daten = trainingDatenzeilen(zeilen, i, sektionEnde(zeilen, i));
+  const ziel = String(name == null ? "" : name).trim().toLowerCase();
+  let treffer = null;
+  for (const j of daten) {
+    if (zeilen[j].trim().toLowerCase() === ziel) { treffer = j; break; }
+  }
+  if (treffer === null) throw new Error("Tag nicht gefunden: " + name);
+  const kanon = zeilen[treffer].trim();
+  if (treffer === daten[0]) return { text: nl(text), name: kanon };
+  const zeile = zeilen.splice(treffer, 1)[0];
+  zeilen.splice(daten[0], 0, zeile);
+  return { text: joinZeilen(zeilen), name: kanon };
+}
+
+function trainingUebungAnlegen(text, tag, name) {
+  name = trainingName(name, 60, "Uebungsname");
+  const daten = parseTraining(text);
+  const ziel = trainingTagFinden(daten, tag);
+  for (const u of daten.uebungen[ziel]) {
+    if (u.toLowerCase() === name.toLowerCase()) return { text: nl(text), name: u };
+  }
+  const zeilen = trainingZeilen(text);
+  sozialAnhaengen(zeilen, "Übungen", [ziel + " | " + name]);
+  return { text: joinZeilen(zeilen), name };
+}
+
+function trainingUebungLoeschen(text, tag, name) {
+  const zeilen = trainingZeilen(text);
+  const i = sektionIndex(zeilen, "Übungen");
+  if (i !== null) {
+    const tagZiel = String(tag == null ? "" : tag).trim().toLowerCase();
+    const nameZiel = String(name == null ? "" : name).trim().toLowerCase();
+    for (const j of trainingDatenzeilen(zeilen, i, sektionEnde(zeilen, i))) {
+      if (!zeilen[j].includes("|")) continue;
+      const k = zeilen[j].indexOf("|");
+      const t = zeilen[j].slice(0, k), u = zeilen[j].slice(k + 1);
+      if (t.trim().toLowerCase() === tagZiel && u.trim().toLowerCase() === nameZiel) {
+        const weg = u.trim();
+        zeilen.splice(j, 1);
+        if (j > 0 && j < zeilen.length && !zeilen[j].trim() && !zeilen[j - 1].trim()) {
+          zeilen.splice(j, 1);
+        }
+        return { text: joinZeilen(zeilen), name: weg };
+      }
+    }
+  }
+  throw new Error("Uebung nicht gefunden: " + name);
+}
+
+function trainingLogtreffer(zeilen, datum, tag, uebung) {
+  const i = sektionIndex(zeilen, "Log");
+  if (i === null) return null;
+  for (const j of trainingDatenzeilen(zeilen, i, sektionEnde(zeilen, i))) {
+    const m = zeilen[j].match(TRAINING_LOG_RE);
+    if (m && m[1] === datum && m[2].trim().toLowerCase() === tag.toLowerCase()
+        && m[3].trim().toLowerCase() === uebung.toLowerCase()) return j;
+  }
+  return null;
+}
+
+function trainingSatz(text, tag, uebung, gewicht, wdh, tagIso) {
+  tagIso = tagIso || iso(heute());
+  const daten = parseTraining(text);
+  const ziel = trainingTagFinden(daten, tag);
+  const ueb = daten.uebungen[ziel].find(
+    (u) => u.toLowerCase() === String(uebung == null ? "" : uebung).trim().toLowerCase());
+  if (!ueb) throw new Error("Uebung gibt es nicht: " + uebung);
+
+  let g = null;
+  const gs = String(gewicht == null ? "" : gewicht).trim();
+  if (gs) {
+    g = Number(gs.replace(/,/g, "."));
+    if (!isFinite(g) || !(g > 0 && g <= 999)) throw new Error("Kein Gewicht: " + gewicht);
+  }
+  const ws = String(wdh == null ? "" : wdh).trim();
+  if (!/^[+-]?\d+$/.test(ws)) throw new Error("Keine Wiederholungen: " + wdh);
+  const w = parseInt(ws, 10);
+  if (!(w > 0 && w <= 999)) throw new Error("Keine Wiederholungen: " + wdh);
+
+  const zeilen = trainingZeilen(text);
+  const treffer = trainingLogtreffer(zeilen, tagIso, ziel, ueb);
+  let saetze = [];
+  if (treffer !== null) {
+    saetze = trainingSaetzeParsen(zeilen[treffer].match(TRAINING_LOG_RE)[4]);
+  }
+  saetze.push({ gewicht: g, wdh: w });
+  const neu = trainingLogzeile(tagIso, ziel, ueb, saetze);
+  if (treffer !== null) zeilen[treffer] = neu;
+  else sozialAnhaengen(zeilen, "Log", [neu]);
+  return { text: joinZeilen(zeilen), zeile: neu, saetze: saetze.map(trainingSatzText) };
+}
+
+function trainingSatzWeg(text, tag, uebung, tagIso) {
+  tagIso = tagIso || iso(heute());
+  const daten = parseTraining(text);
+  const ziel = trainingTagFinden(daten, tag);
+  const ueb = String(uebung == null ? "" : uebung).trim();
+  const zeilen = trainingZeilen(text);
+  const treffer = trainingLogtreffer(zeilen, tagIso, ziel, ueb);
+  if (treffer === null) throw new Error("Heute ist nichts eingetragen");
+  const m = zeilen[treffer].match(TRAINING_LOG_RE);
+  const saetze = trainingSaetzeParsen(m[4]);
+  saetze.pop();
+  if (saetze.length) {
+    zeilen[treffer] = trainingLogzeile(tagIso, m[2].trim(), m[3].trim(), saetze);
+  } else {
+    zeilen.splice(treffer, 1);
+    if (treffer > 0 && treffer < zeilen.length && !zeilen[treffer].trim()
+        && !zeilen[treffer - 1].trim()) {
+      zeilen.splice(treffer, 1);
+    }
+  }
+  return { text: joinZeilen(zeilen), saetze: saetze.map(trainingSatzText) };
+}
+
 // ===CORE-END===
 
 if (typeof module !== "undefined") {
@@ -1617,6 +1851,10 @@ if (typeof module !== "undefined") {
     sozialBereitFuerMehr, stufenKuerzel, letzteZiele, refsAufloesen,
     tagebuchVorlage, tagebuchSpeichern,
     parseSchlagworte, autoRefs, tagebuchAnlegen, titleCase, capitalize,
+    TRAINING_LOG_RE, trainingZeilen, parseTraining, trainingSaetzeParsen,
+    trainingSatzText, trainingGewichtText, trainingLogzeile,
+    trainingTagAnlegen, trainingTagOben, trainingUebungAnlegen,
+    trainingUebungLoeschen, trainingSatz, trainingSatzWeg,
   };
 }
 
@@ -1671,7 +1909,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 3;
+const VERSION = 4;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -1833,7 +2071,8 @@ async function aktualisieren(leise) {
 
     const feste = ["Dashboard/Kalender.md", "Dashboard/Habits.md",
       "Dashboard/Schichten.md", "Dashboard/Gesundheit.md",
-      "Dashboard/Sozial.md", "Dashboard/Schlagworte.md"];
+      "Dashboard/Sozial.md", "Dashboard/Training.md",
+      "Dashboard/Schlagworte.md"];
     await Promise.all(
       namen.map((n) => ladeDatei("Dashboard/" + n)).concat(feste.map(ladeDatei)));
 
@@ -1903,6 +2142,7 @@ function renderAlles() {
   renderHeute();
   renderKalender();
   renderTagebuch();
+  renderTraining();
   renderSozial();
 }
 
@@ -2223,6 +2463,126 @@ function renderSozial() {
   $("#blatt-sozial").innerHTML = b.join("");
 }
 
+// ---------------------------------------------------------- Training
+
+let trEingaben = {};   // uebung -> {gew, wdh}, damit die Felder beim
+                       // Neuzeichnen nach jedem Satz gefuellt bleiben
+
+function trainingWann(d) {
+  const n = tageDiff(heute(), d);
+  if (n === 0) return "heute";
+  if (n === 1) return "gestern";
+  return "vor " + n + " Tagen";
+}
+
+function trainingSaetzeKurz(saetze) {
+  return saetze.map(trainingSatzText).join(", ");
+}
+
+function renderTraining() {
+  const d = parseTraining(text("Dashboard/Training.md"));
+  const h = iso(heute());
+  const b = [];
+
+  b.push("<div class=\"karte\"><h3>Trainingstage</h3>");
+  if (d.tage.length) {
+    b.push("<div class=\"chips\">");
+    d.tage.forEach((t, n) => {
+      b.push("<button class=\"chip" + (n === 0 ? " an" : "") + "\" data-aktion=\"training-tag-oben\" data-tag=\"" + esc(t) + "\"" + (n === 0 ? " data-oben=\"1\"" : "") + ">" + esc(t) + "</button>");
+    });
+    b.push("<button class=\"chip leise\" data-aktion=\"training-tag-neu\">+ Tag</button>");
+    b.push("</div>");
+    b.push("<div class=\"hilfetext\" style=\"margin-top:8px\">Tippen schiebt den Tag nach ganz oben, der oberste ist dein aktueller Tag.</div>");
+  } else {
+    b.push("<div class=\"hilfetext\">Noch keine Trainingstage. Leg den ersten an, zum Beispiel Push.</div>");
+    b.push("<button class=\"knopf zweit\" data-aktion=\"training-tag-neu\" style=\"margin-top:8px\">+ Trainingstag anlegen</button>");
+  }
+  b.push("</div>");
+
+  if (d.tage.length) {
+    const akt = d.tage[0];
+    const uebungen = d.uebungen[akt] || [];
+    if (!uebungen.length) {
+      b.push("<div class=\"karte\"><h3>" + esc(akt) + "</h3><div class=\"hilfetext\">Noch keine Übungen für " + esc(akt) + ". Leg unten die erste an.</div></div>");
+    }
+    for (const u of uebungen) {
+      const eintraege = d.log.filter((x) => x.uebung.toLowerCase() === u.toLowerCase());
+      let heuteE = null;
+      for (const x of eintraege) {
+        if (iso(x.datum) === h && x.tag.toLowerCase() === akt.toLowerCase()) heuteE = x;
+      }
+      const frueher = eintraege.filter((x) => iso(x.datum) !== h);
+      const gewichte = [];
+      for (const x of eintraege) {
+        for (const s of x.saetze) if (s.gewicht !== null) gewichte.push(s.gewicht);
+      }
+      const bestes = gewichte.length ? Math.max.apply(null, gewichte) : null;
+
+      b.push("<div class=\"karte\"><h3>" + esc(u) +
+        (bestes !== null ? " <span class=\"zusatz\">Bestes " + trainingGewichtText(bestes) + " kg</span>" : "") + "</h3>");
+      if (frueher.length) {
+        const x = frueher[frueher.length - 1];
+        b.push("<div class=\"hilfetext\">Letztes Mal " + trainingWann(x.datum) + ": " + esc(trainingSaetzeKurz(x.saetze)) + "</div>");
+      }
+      if (heuteE) {
+        b.push("<div class=\"trsaetze\">" + heuteE.saetze.map(
+          (s) => "<span class=\"trsatz\">" + esc(trainingSatzText(s)) + "</span>").join("") + "</div>");
+      }
+      const eing = trEingaben[u] || {};
+      b.push("<div class=\"zeile2\"><div><label class=\"feld\">Gewicht in kg, leer ohne</label>" +
+        "<input type=\"number\" step=\"0.25\" inputmode=\"decimal\" class=\"tr-gew\" value=\"" + esc(eing.gew || "") + "\"></div>" +
+        "<div><label class=\"feld\">Wiederholungen</label>" +
+        "<input type=\"number\" inputmode=\"numeric\" class=\"tr-wdh\" value=\"" + esc(eing.wdh || "") + "\"></div></div>");
+      b.push("<button class=\"knopf\" data-aktion=\"training-satz\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\">+ Satz eintragen</button>");
+      if (heuteE) {
+        b.push("<button class=\"knopf zweit\" data-aktion=\"training-satz-weg\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\" style=\"margin-top:8px\">Letzten Satz rausnehmen</button>");
+      }
+      b.push("<details class=\"liste-details\" style=\"margin-top:8px\"><summary><span class=\"pfeil\">▶</span>Verlauf<span class=\"anzahl\">" +
+        eintraege.length + (eintraege.length === 1 ? " Einheit" : " Einheiten") + "</span></summary>");
+      for (const x of eintraege.slice(-10).reverse()) {
+        b.push("<div class=\"logzeile\"><div class=\"kopf\"><span class=\"datum\">" + kurzDatum(x.datum) + "</span>" +
+          "<span>" + esc(x.tag) + "</span>" +
+          "<span class=\"zahlen\">" + esc(trainingSaetzeKurz(x.saetze)) + "</span></div></div>");
+      }
+      b.push("<button class=\"knopf zweit\" data-aktion=\"training-uebung-weg\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\" style=\"margin-top:8px\">Übung aus dem Plan nehmen</button>");
+      b.push("</details></div>");
+    }
+
+    b.push("<div class=\"karte\"><h3>Übung hinzufügen <span class=\"zusatz\">" + esc(akt) + "</span></h3>" +
+      "<input type=\"text\" id=\"tr-neuueb\" placeholder=\"Name der Übung\">" +
+      "<button class=\"knopf\" data-aktion=\"training-uebung-neu\" data-tag=\"" + esc(akt) + "\" style=\"margin-top:8px\">Hinzufügen</button></div>");
+  }
+
+  if (d.log.length) {
+    const gruppen = new Map();
+    for (const x of d.log) {
+      const k = iso(x.datum) + "|" + x.tag;
+      if (!gruppen.has(k)) gruppen.set(k, []);
+      gruppen.get(k).push(x);
+    }
+    const keys = Array.from(gruppen.keys()).sort().reverse().slice(0, 8);
+    b.push("<div class=\"karte\"><h3>Letzte Einheiten</h3>");
+    for (const k of keys) {
+      const xs = gruppen.get(k);
+      const teile = k.split("|");
+      let ns = 0;
+      for (const x of xs) ns += x.saetze.length;
+      b.push("<div class=\"logzeile\"><div class=\"kopf\"><span class=\"datum\">" + kurzDatum(parseDateIso(teile[0])) + "</span>" +
+        "<span>" + esc(teile[1]) + "</span>" +
+        "<span class=\"zahlen\">" + xs.length + (xs.length === 1 ? " Übung" : " Übungen") + ", " + ns + " Sätze</span></div></div>");
+    }
+    b.push("</div>");
+  }
+
+  $("#blatt-training").innerHTML = b.join("");
+}
+
+function trainingTagSheet() {
+  sheetOeffnen("<div class=\"griff\"></div><h2>Neuer Trainingstag</h2>" +
+    "<label class=\"feld\">Name, zum Beispiel Push</label><input type=\"text\" id=\"tr-neutag\">" +
+    "<button class=\"knopf\" data-aktion=\"training-tag-anlegen\" style=\"margin-top:8px\">Anlegen</button>");
+}
+
 // ------------------------------------------------------------ Sheets
 
 function todoMenue(datei, raw) {
@@ -2411,6 +2771,58 @@ const AKTIONEN = {
     await mitToast(() => transaktion(["Dashboard/Gesundheit.md"],
       (texte) => ({ "Dashboard/Gesundheit.md": gesundheitLog(texte["Dashboard/Gesundheit.md"], "wasser", wert, "add", iso(heute())).text }),
       "Mobil: Wasser"));
+  },
+
+  "training-tag-oben": async (el) => {
+    if (el.dataset.oben === "1") return;
+    const tag = el.dataset.tag;
+    await mitToast(() => transaktion(["Dashboard/Training.md"],
+      (texte) => ({ "Dashboard/Training.md": trainingTagOben(texte["Dashboard/Training.md"], tag).text }),
+      "Mobil: Trainingstag " + tag + " nach oben"), tag + " ist jetzt dein aktueller Tag");
+  },
+  "training-tag-neu": () => trainingTagSheet(),
+  "training-tag-anlegen": async () => {
+    const name = $("#tr-neutag").value.trim();
+    if (!name) { toast("Name fehlt", true); return; }
+    sheetZu();
+    await mitToast(() => transaktion(["Dashboard/Training.md"],
+      (texte) => ({ "Dashboard/Training.md": trainingTagAnlegen(texte["Dashboard/Training.md"], name).text }),
+      "Mobil: Trainingstag " + name), "Tag angelegt");
+  },
+  "training-uebung-neu": async (el) => {
+    const name = $("#tr-neuueb").value.trim();
+    if (!name) { toast("Name fehlt", true); return; }
+    const tag = el.dataset.tag;
+    await mitToast(() => transaktion(["Dashboard/Training.md"],
+      (texte) => ({ "Dashboard/Training.md": trainingUebungAnlegen(texte["Dashboard/Training.md"], tag, name).text }),
+      "Mobil: Uebung " + name), "Übung angelegt");
+  },
+  "training-uebung-weg": async (el) => {
+    const { tag, uebung } = el.dataset;
+    if (!confirm("Übung " + uebung + " aus dem Plan nehmen? Der Verlauf bleibt erhalten.")) return;
+    await mitToast(() => transaktion(["Dashboard/Training.md"],
+      (texte) => ({ "Dashboard/Training.md": trainingUebungLoeschen(texte["Dashboard/Training.md"], tag, uebung).text }),
+      "Mobil: Uebung " + uebung + " raus"), "Übung ist raus, der Verlauf bleibt");
+  },
+  "training-satz": async (el) => {
+    const { tag, uebung } = el.dataset;
+    const k = el.closest(".karte");
+    const gew = k.querySelector(".tr-gew").value.trim();
+    const wdh = k.querySelector(".tr-wdh").value.trim();
+    if (!wdh) { toast("Wiederholungen fehlen", true); return; }
+    trEingaben[uebung] = { gew, wdh };
+    await mitToast(() => transaktion(["Dashboard/Training.md", "Dashboard/Habits.md"],
+      (texte) => {
+        const r = trainingSatz(texte["Dashboard/Training.md"], tag, uebung, gew, wdh, iso(heute()));
+        const h = habitSetzen(texte["Dashboard/Habits.md"], "gym", true, iso(heute()));
+        return { "Dashboard/Training.md": r.text, "Dashboard/Habits.md": h.text };
+      }, "Mobil: Training " + uebung), "Satz notiert");
+  },
+  "training-satz-weg": async (el) => {
+    const { tag, uebung } = el.dataset;
+    await mitToast(() => transaktion(["Dashboard/Training.md"],
+      (texte) => ({ "Dashboard/Training.md": trainingSatzWeg(texte["Dashboard/Training.md"], tag, uebung, iso(heute())).text }),
+      "Mobil: Training " + uebung + " Satz raus"), "Letzter Satz ist raus");
   },
 
   "kal-monat": (el) => { kalMonat = plusMonat(kalMonat, parseInt(el.dataset.schritt, 10)); renderKalender(); },
