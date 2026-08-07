@@ -213,7 +213,33 @@ label.feld { display: block; font-size: 12.5px; color: var(--leise); margin-bott
 
 /* Training */
 .trsaetze { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 2px; }
-.trsatz { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--karte2); border: 1px solid var(--rand); color: var(--ok); font-weight: 600; }
+.trsatz { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--karte2); border: 1px solid var(--rand); color: var(--ok); font-weight: 600; font-family: inherit; }
+.trsatz:active { border-color: var(--akzent); }
+
+/* Medien */
+.medtitel {
+  display: block; width: 100%; text-align: left; background: none; border: 0;
+  border-bottom: 1px solid var(--rand); color: var(--text);
+  padding: 10px 2px; font-size: 15px; font-family: inherit;
+}
+.medtitel:last-child { border-bottom: 0; }
+.medtitel .zu { display: block; color: var(--leise); font-size: 12px; }
+.medpill {
+  font-size: 12px; padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+  background: var(--karte2); border: 1px solid var(--rand);
+  color: var(--ok); font-weight: 600;
+}
+.durchzeile { padding: 8px 0; border-bottom: 1px solid var(--rand); }
+.durchzeile:last-child { border-bottom: 0; }
+.durchzeile .kopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mednotiz summary { list-style: none; color: var(--leise); font-size: 13px; margin-top: 6px; }
+.mednotiz summary::-webkit-details-marker { display: none; }
+.mednotiz .pfeil { display: inline-block; font-size: 10px; transition: transform .15s; }
+.mednotiz[open] .pfeil { transform: rotate(180deg); }
+.mednotizinhalt {
+  white-space: pre-wrap; font-size: 14px; margin-top: 6px;
+  background: var(--karte2); border-radius: 10px; padding: 8px 10px;
+}
 
 /* Tabbar */
 nav.tabs {
@@ -300,6 +326,7 @@ nav.tabs button.aktiv { color: var(--akzent); }
   <div class="blatt" id="blatt-kalender"></div>
   <div class="blatt" id="blatt-tagebuch"></div>
   <div class="blatt" id="blatt-training"></div>
+  <div class="blatt" id="blatt-medien"></div>
   <div class="blatt" id="blatt-sozial"></div>
 </main>
 <button class="fab sichtbar" id="fab" data-aktion="fab" aria-label="Neues Todo">+</button>
@@ -319,6 +346,10 @@ nav.tabs button.aktiv { color: var(--akzent); }
   <button data-aktion="tab" data-tab="training">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/></svg>
     Training
+  </button>
+  <button data-aktion="tab" data-tab="medien">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v16M17 4v16M2 9h5M2 15h5M17 9h5M17 15h5"/></svg>
+    Medien
   </button>
   <button data-aktion="tab" data-tab="sozial">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -1776,14 +1807,7 @@ function trainingLogtreffer(zeilen, datum, tag, uebung) {
   return null;
 }
 
-function trainingSatz(text, tag, uebung, gewicht, wdh, tagIso) {
-  tagIso = tagIso || iso(heute());
-  const daten = parseTraining(text);
-  const ziel = trainingTagFinden(daten, tag);
-  const ueb = daten.uebungen[ziel].find(
-    (u) => u.toLowerCase() === String(uebung == null ? "" : uebung).trim().toLowerCase());
-  if (!ueb) throw new Error("Uebung gibt es nicht: " + uebung);
-
+function trainingSatzPruefen(gewicht, wdh) {
   let g = null;
   const gs = String(gewicht == null ? "" : gewicht).trim();
   if (gs) {
@@ -1794,6 +1818,23 @@ function trainingSatz(text, tag, uebung, gewicht, wdh, tagIso) {
   if (!/^[+-]?\d+$/.test(ws)) throw new Error("Keine Wiederholungen: " + wdh);
   const w = parseInt(ws, 10);
   if (!(w > 0 && w <= 999)) throw new Error("Keine Wiederholungen: " + wdh);
+  return { gewicht: g, wdh: w };
+}
+
+function trainingUebungFinden(daten, ziel, uebung) {
+  const ueb = daten.uebungen[ziel].find(
+    (u) => u.toLowerCase() === String(uebung == null ? "" : uebung).trim().toLowerCase());
+  if (!ueb) throw new Error("Uebung gibt es nicht: " + uebung);
+  return ueb;
+}
+
+function trainingSatz(text, tag, uebung, gewicht, wdh, tagIso) {
+  tagIso = tagIso || iso(heute());
+  const daten = parseTraining(text);
+  const ziel = trainingTagFinden(daten, tag);
+  const ueb = trainingUebungFinden(daten, ziel, uebung);
+  const satz = trainingSatzPruefen(gewicht, wdh);
+  const g = satz.gewicht, w = satz.wdh;
 
   const zeilen = trainingZeilen(text);
   const treffer = trainingLogtreffer(zeilen, tagIso, ziel, ueb);
@@ -1831,6 +1872,188 @@ function trainingSatzWeg(text, tag, uebung, tagIso) {
   return { text: joinZeilen(zeilen), saetze: saetze.map(trainingSatzText) };
 }
 
+function trainingSaetzeSetzen(text, tag, uebung, saetze, tagIso) {
+  tagIso = tagIso || iso(heute());
+  const daten = parseTraining(text);
+  const ziel = trainingTagFinden(daten, tag);
+  const ueb = trainingUebungFinden(daten, ziel, uebung);
+  const geprueft = (saetze || []).map((s) => trainingSatzPruefen(s.gewicht, s.wdh));
+
+  const zeilen = trainingZeilen(text);
+  const treffer = trainingLogtreffer(zeilen, tagIso, ziel, ueb);
+  if (!geprueft.length) {
+    if (treffer !== null) {
+      zeilen.splice(treffer, 1);
+      if (treffer > 0 && treffer < zeilen.length && !zeilen[treffer].trim()
+          && !zeilen[treffer - 1].trim()) {
+        zeilen.splice(treffer, 1);
+      }
+      return { text: joinZeilen(zeilen), saetze: [] };
+    }
+    return { text: nl(text), saetze: [] };
+  }
+  const neu = trainingLogzeile(tagIso, ziel, ueb, geprueft);
+  if (treffer !== null) zeilen[treffer] = neu;
+  else sozialAnhaengen(zeilen, "Log", [neu]);
+  return { text: joinZeilen(zeilen), zeile: neu, saetze: geprueft.map(trainingSatzText) };
+}
+
+// ------------------------------------------------------------- Medien
+// Woertlich aus aktionen.py. Watchliste: ein Titel pro Zeile als
+// [[Wikilink]], dahinter optional ein freier Zusatz. Ein Pipe heisst
+// "laeuft gerade", der Text nach dem Pipe ist der Fortschritt.
+
+const MEDIEN_KAT = [
+  ["serie", "Serie", "Watchliste - Serien.md", "geschaute Serien.md", "Serien", "geschaut"],
+  ["film", "Film", "Watchliste - Filme.md", "geschaute Filme.md", "Filme", "geschaut"],
+  ["anime", "Anime", "Watchliste - Animes.md", "geschaute Animes.md", "Animes", "geschaut"],
+  ["manga", "Manga", "Watchliste - Mangas.md", "gelesene Mangas.md", "Mangas", "gelesen"],
+  ["buch", "Buch", "Watchliste - Bücher.md", "gelesene Bücher.md", "Bücher", "gelesen"],
+];
+const MEDIEN_ORDNER = { serie: "Serien", film: "Filme", anime: "Anime", manga: "Manga", buch: "Bücher" };
+const MEDIEN_LINK_ZUSATZ_RE = /^\[\[(.+?)\]\]\s*(.*)$/;
+
+function medienKat(kat) {
+  const k = MEDIEN_KAT.find((x) => x[0] === kat);
+  if (!k) throw new Error("Unbekannte Kategorie: " + kat);
+  return k;
+}
+
+function notizName(titel) {
+  return String(titel).replace(/[\\/:*?"<>|#^\[\]]/g, "")
+    .replace(/\s{2,}/g, " ").replace(/^[ .]+/, "").replace(/[ .]+$/, "");
+}
+
+function medienZeilen(text) {
+  const raus = [];
+  let imKommentar = false;
+  for (const z of nl(text).split("\n")) {
+    let s = z.trim();
+    if (imKommentar) {
+      if (s.includes("-->")) {
+        imKommentar = false;
+        s = s.split("-->").slice(1).join("-->").trim();
+        if (!s) continue;
+      } else continue;
+    } else if (s.startsWith("<!--")) {
+      if (!s.includes("-->")) imKommentar = true;
+      continue;
+    }
+    if (!s || s.startsWith("#") || s.startsWith("---") || s.startsWith(">")) continue;
+    raus.push(s);
+  }
+  return raus;
+}
+
+function medienTeile(roh) {
+  let kopf = roh, fort = null;
+  const p = roh.indexOf("|");
+  if (p >= 0) { kopf = roh.slice(0, p); fort = roh.slice(p + 1).trim(); }
+  kopf = kopf.trim();
+  const m = kopf.match(MEDIEN_LINK_ZUSATZ_RE);
+  if (m) return { titel: m[1].trim(), zusatz: m[2].trim(), fort };
+  return { titel: kopf, zusatz: "", fort };
+}
+
+function medienIndex(zeilen, titel) {
+  const ziel = String(titel).trim().toLowerCase();
+  for (let i = 0; i < zeilen.length; i++) {
+    const s = zeilen[i].trim();
+    if (!s || s.startsWith("#") || s.startsWith("<!--") || s.startsWith("---") || s.startsWith(">")) continue;
+    if (medienTeile(s).titel.toLowerCase() === ziel) return i;
+  }
+  return null;
+}
+
+// texteJeKat: kat -> Text der Watchliste bzw. Fertig-Datei
+function parseMedienAlle(texteJeKat) {
+  const dabei = [], backlog = [];
+  for (const [key, label] of MEDIEN_KAT) {
+    for (const roh of medienZeilen(texteJeKat[key] || "")) {
+      const t = medienTeile(roh);
+      const e2 = { titel: t.titel, typ: label, kat: key, zusatz: t.zusatz,
+        fortschritt: t.fort || "" };
+      (t.fort !== null ? dabei : backlog).push(e2);
+    }
+  }
+  return { dabei, backlog };
+}
+
+function parseGeschautAlle(texteJeKat) {
+  const raus = [];
+  for (const [key, label, wl, gl, mehrzahl, partizip] of MEDIEN_KAT) {
+    void wl; void gl;
+    const eintraege = [];
+    for (const s of medienZeilen(texteJeKat[key] || "")) {
+      const m = s.match(MEDIEN_LINK_ZUSATZ_RE);
+      if (m) eintraege.push({ titel: m[1], note: m[2].trim() });
+      else eintraege.push({ titel: s, note: "" });
+    }
+    raus.push({ key, label, mehrzahl, partizip, eintraege });
+  }
+  return raus;
+}
+
+function medienHinzufuegen(text, titel) {
+  titel = notizName(String(titel || "").replace(/\|/g, " ").trim());
+  if (!titel) throw new Error("Kein Titel");
+  if (titel.length > 200) throw new Error("Titel zu lang");
+  const zeilen = zeilenAus(text);
+  if (medienIndex(zeilen, titel) !== null) return { text: null, titel };
+  zeilen.push("[[" + titel + "]]");
+  return { text: joinZeilen(zeilen), titel };
+}
+
+function medienAufstarten(text, titel) {
+  const zeilen = zeilenAus(text);
+  const i = medienIndex(zeilen, titel);
+  if (i === null) throw new Error("Titel nicht in der Watchliste: " + titel);
+  if (!zeilen[i].includes("|")) zeilen[i] = rstripNl(zeilen[i]).replace(/\s+$/, "") + " | ";
+  return { text: joinZeilen(zeilen), titel: medienTeile(zeilen[i]).titel };
+}
+
+function medienFortschritt(text, titel, wert) {
+  wert = String(wert || "").replace(/\|/g, "/").trim();
+  const zeilen = zeilenAus(text);
+  const i = medienIndex(zeilen, titel);
+  if (i === null) throw new Error("Titel nicht in der Watchliste: " + titel);
+  const basis = zeilen[i].split("|")[0].replace(/\s+$/, "");
+  zeilen[i] = wert ? basis + " | " + wert : basis + " | ";
+  return { text: joinZeilen(zeilen) };
+}
+
+function medienNote(bewertung) {
+  const b = String(bewertung || "").trim().replace(",", ".");
+  if (!b) return "";
+  const v = parseFloat(b.split("/")[0]);
+  if (isNaN(v) || v < 0 || v > 10) return "";
+  return " " + (Math.round(v * 100) / 100) + "/10";
+}
+
+function medienFertig(wlText, glText, titel, bewertung) {
+  const zeilen = zeilenAus(wlText);
+  const i = medienIndex(zeilen, titel);
+  if (i === null) throw new Error("Titel nicht in der Watchliste: " + titel);
+  const t = medienTeile(zeilen[i].trim());
+  zeilen.splice(i, 1);
+  const note = medienNote(bewertung);
+  const gz = zeilenAus(glText);
+  gz.push("[[" + t.titel + "]]" + note);
+  return { wlText: joinZeilen(zeilen), glText: joinZeilen(gz),
+    nackt: t.titel, zusatz: t.zusatz, note };
+}
+
+// Haengt Zeilen unten an eine Notiz an, wie medien_notiz_ergaenzen am PC.
+function medienNotizErgaenzen(alt, zeilenNeu) {
+  zeilenNeu = zeilenNeu.filter((z) => z && z.trim());
+  if (!zeilenNeu.length) return null;
+  const kern = rstripNl(nl(alt));
+  const zeilen = kern ? kern.split("\n") : [];
+  if (zeilen.length) zeilen.push("");
+  for (const z of zeilenNeu) zeilen.push(z);
+  return joinZeilen(zeilen);
+}
+
 // ===CORE-END===
 
 if (typeof module !== "undefined") {
@@ -1855,6 +2078,11 @@ if (typeof module !== "undefined") {
     trainingSatzText, trainingGewichtText, trainingLogzeile,
     trainingTagAnlegen, trainingTagOben, trainingUebungAnlegen,
     trainingUebungLoeschen, trainingSatz, trainingSatzWeg,
+    trainingSaetzeSetzen, trainingSatzPruefen,
+    MEDIEN_KAT, MEDIEN_ORDNER, medienKat, notizName, medienZeilen,
+    medienTeile, medienIndex, parseMedienAlle, parseGeschautAlle,
+    medienHinzufuegen, medienAufstarten, medienFortschritt, medienNote,
+    medienFertig, medienNotizErgaenzen,
   };
 }
 
@@ -1909,7 +2137,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 4;
+const VERSION = 6;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -2073,6 +2301,7 @@ async function aktualisieren(leise) {
       "Dashboard/Schichten.md", "Dashboard/Gesundheit.md",
       "Dashboard/Sozial.md", "Dashboard/Training.md",
       "Dashboard/Schlagworte.md"];
+    for (const k of MEDIEN_KAT) feste.push("Medien/" + k[2], "Medien/" + k[3]);
     await Promise.all(
       namen.map((n) => ladeDatei("Dashboard/" + n)).concat(feste.map(ladeDatei)));
 
@@ -2143,6 +2372,7 @@ function renderAlles() {
   renderKalender();
   renderTagebuch();
   renderTraining();
+  renderMedien();
   renderSozial();
 }
 
@@ -2526,7 +2756,8 @@ function renderTraining() {
       }
       if (heuteE) {
         b.push("<div class=\"trsaetze\">" + heuteE.saetze.map(
-          (s) => "<span class=\"trsatz\">" + esc(trainingSatzText(s)) + "</span>").join("") + "</div>");
+          (s, i) => "<button class=\"trsatz\" data-aktion=\"training-satz-edit\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\" data-nr=\"" + i + "\">" + esc(trainingSatzText(s)) + "</button>").join("") + "</div>");
+        b.push("<div class=\"hilfetext\">Satz antippen zum Ändern oder Löschen.</div>");
       }
       const eing = trEingaben[u] || {};
       b.push("<div class=\"zeile2\"><div><label class=\"feld\">Gewicht in kg, leer ohne</label>" +
@@ -2534,8 +2765,8 @@ function renderTraining() {
         "<div><label class=\"feld\">Wiederholungen</label>" +
         "<input type=\"number\" inputmode=\"numeric\" class=\"tr-wdh\" value=\"" + esc(eing.wdh || "") + "\"></div></div>");
       b.push("<button class=\"knopf\" data-aktion=\"training-satz\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\">+ Satz eintragen</button>");
-      if (heuteE) {
-        b.push("<button class=\"knopf zweit\" data-aktion=\"training-satz-weg\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\" style=\"margin-top:8px\">Letzten Satz rausnehmen</button>");
+      if (!heuteE && frueher.length) {
+        b.push("<button class=\"knopf zweit\" data-aktion=\"training-uebernehmen\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\" style=\"margin-top:8px\">Wie letztes Mal (" + esc(trainingSaetzeKurz(frueher[frueher.length - 1].saetze)) + ")</button>");
       }
       b.push("<details class=\"liste-details\" style=\"margin-top:8px\"><summary><span class=\"pfeil\">▶</span>Verlauf<span class=\"anzahl\">" +
         eintraege.length + (eintraege.length === 1 ? " Einheit" : " Einheiten") + "</span></summary>");
@@ -2577,10 +2808,169 @@ function renderTraining() {
   $("#blatt-training").innerHTML = b.join("");
 }
 
+function trainingHeutigeRoh(t, tag, uebung) {
+  // Heutige Saetze als rohe Eingaben, so wie trainingSaetzeSetzen sie will.
+  const d = parseTraining(t);
+  const h = iso(heute());
+  const e2 = d.log.find((x) => iso(x.datum) === h
+    && x.tag.toLowerCase() === String(tag).toLowerCase()
+    && x.uebung.toLowerCase() === String(uebung).toLowerCase());
+  return e2 ? e2.saetze.map((s) => ({
+    gewicht: s.gewicht === null ? "" : trainingGewichtText(s.gewicht),
+    wdh: String(s.wdh),
+  })) : [];
+}
+
+function trainingSatzEditSheet(tag, uebung, nr, g, w) {
+  const idx = "data-tag=\"" + esc(tag) + "\" data-uebung=\"" + esc(uebung) + "\" data-nr=\"" + nr + "\"";
+  sheetOeffnen("<div class=\"griff\"></div><h2>" + esc(uebung) + " <span class=\"zusatz\">Satz " + (nr + 1) + "</span></h2>" +
+    "<div class=\"zeile2\"><div><label class=\"feld\">Gewicht in kg, leer ohne</label>" +
+    "<input type=\"number\" step=\"0.25\" inputmode=\"decimal\" id=\"tr-edit-gew\" value=\"" + esc(g) + "\"></div>" +
+    "<div><label class=\"feld\">Wiederholungen</label>" +
+    "<input type=\"number\" inputmode=\"numeric\" id=\"tr-edit-wdh\" value=\"" + esc(w) + "\"></div></div>" +
+    "<button class=\"knopf\" data-aktion=\"training-satz-aendern\" " + idx + ">Ändern</button>" +
+    "<div style=\"height:8px\"></div>" +
+    "<button class=\"knopf zweit\" data-aktion=\"training-satz-loeschen\" " + idx + ">Diesen Satz löschen</button>" +
+    "<button class=\"aktion\" data-aktion=\"sheet-zu\" style=\"margin-top:6px\">Abbrechen</button>");
+}
+
 function trainingTagSheet() {
   sheetOeffnen("<div class=\"griff\"></div><h2>Neuer Trainingstag</h2>" +
     "<label class=\"feld\">Name, zum Beispiel Push</label><input type=\"text\" id=\"tr-neutag\">" +
     "<button class=\"knopf\" data-aktion=\"training-tag-anlegen\" style=\"margin-top:8px\">Anlegen</button>");
+}
+
+// ------------------------------------------------------------- Medien
+
+let medVorschlag = null;   // aktueller Wuerfel-Vorschlag
+
+function medienWlTexte() {
+  const o = {};
+  for (const k of MEDIEN_KAT) o[k[0]] = text("Medien/" + k[2]);
+  return o;
+}
+function medienGlTexte() {
+  const o = {};
+  for (const k of MEDIEN_KAT) o[k[0]] = text("Medien/" + k[3]);
+  return o;
+}
+function medienNotizPfad(kat, titel) {
+  return "Medien/" + MEDIEN_ORDNER[kat] + "/" + notizName(titel) + ".md";
+}
+
+// Notiz-Pfad zum Titel: erst der Kategorie-Ordner, dann flach in Medien/.
+// Gibt {pfad, sha} des ersten Treffers, sonst den Ordner-Pfad ohne sha.
+async function medienNotizFinden(kat, titel) {
+  const haupt = medienNotizPfad(kat, titel);
+  const d = await ladeDatei(haupt);
+  if (d.sha) return { pfad: haupt, eintrag: d };
+  const flach = "Medien/" + notizName(titel) + ".md";
+  const d2 = await ladeDatei(flach);
+  if (d2.sha) return { pfad: flach, eintrag: d2 };
+  return { pfad: haupt, eintrag: d };
+}
+
+function medienNotizDetails(kat, titel) {
+  const idx = "data-kat=\"" + esc(kat) + "\" data-titel=\"" + esc(titel) + "\"";
+  return "<details class=\"mednotiz\"><summary data-aktion=\"medien-notiz\" " + idx + ">" +
+    "<span class=\"pfeil\">▼</span> Notiz</summary>" +
+    "<div class=\"mednotizinhalt\"></div></details>";
+}
+
+function renderMedien() {
+  const m = parseMedienAlle(medienWlTexte());
+  const durch = parseGeschautAlle(medienGlTexte());
+  const b = [];
+
+  b.push("<div class=\"karte\"><h3>Gerade dabei</h3>");
+  if (!m.dabei.length) {
+    b.push("<div class=\"hilfetext\">Nichts läuft gerade. Würfel unten einen Vorschlag oder starte einen offenen Titel.</div>");
+  }
+  b.push("</div>");
+  for (const d of m.dabei) {
+    const idx = "data-kat=\"" + esc(d.kat) + "\" data-titel=\"" + esc(d.titel) + "\"";
+    b.push("<div class=\"karte\"><h3>" + esc(d.titel) + " <span class=\"zusatz\">" + esc(d.typ) + "</span></h3>");
+    if (d.zusatz) b.push("<div class=\"hilfetext\">" + esc(d.zusatz) + "</div>");
+    b.push("<label class=\"feld\">Folge oder Staffel</label>" +
+      "<input type=\"text\" class=\"med-fort\" value=\"" + esc(d.fortschritt) + "\">");
+    b.push("<div class=\"zeile2\" style=\"margin-top:8px\">" +
+      "<button class=\"knopf zweit\" data-aktion=\"medien-merken\" " + idx + ">Merken</button>" +
+      "<button class=\"knopf\" data-aktion=\"medien-fertig-frage\" " + idx + ">Fertig</button></div>");
+    b.push(medienNotizDetails(d.kat, d.titel));
+    b.push("</div>");
+  }
+
+  b.push("<div class=\"karte\"><h3>Neu hinzufügen</h3>" +
+    "<label class=\"feld\">Titel</label><input type=\"text\" id=\"med-neutitel\">" +
+    "<label class=\"feld\">Kategorie</label><select id=\"med-neukat\">" +
+    MEDIEN_KAT.map((k) => "<option value=\"" + k[0] + "\">" + k[1] + "</option>").join("") +
+    "</select><button class=\"knopf\" data-aktion=\"medien-add\" style=\"margin-top:8px\">Hinzufügen</button></div>");
+
+  b.push("<div class=\"karte\"><h3>Was als nächstes</h3>" +
+    "<div class=\"hilfetext\">Zieht zufällig aus " + m.backlog.length + " offenen Titeln.</div>");
+  if (medVorschlag) {
+    b.push("<div style=\"margin:8px 0 2px\"><strong>" + esc(medVorschlag.titel) + "</strong> " +
+      "<span class=\"zusatz\">" + esc(medVorschlag.typ) + "</span>" +
+      (medVorschlag.zusatz ? "<div class=\"hilfetext\">" + esc(medVorschlag.zusatz) + "</div>" : "") + "</div>");
+    b.push("<div class=\"zeile2\" style=\"margin-top:8px\">" +
+      "<button class=\"knopf zweit\" data-aktion=\"medien-wuerfeln\">Nochmal</button>" +
+      "<button class=\"knopf\" data-aktion=\"medien-start\" data-kat=\"" + esc(medVorschlag.kat) + "\" data-titel=\"" + esc(medVorschlag.titel) + "\">Starten</button></div>");
+  } else {
+    b.push("<button class=\"knopf\" data-aktion=\"medien-wuerfeln\" style=\"margin-top:8px\">Würfeln</button>");
+  }
+  b.push("</div>");
+
+  const nachKat = new Map();
+  for (const x of m.backlog) {
+    if (!nachKat.has(x.kat)) nachKat.set(x.kat, []);
+    nachKat.get(x.kat).push(x);
+  }
+  for (const [key, label, wl, gl, mehrzahl] of MEDIEN_KAT) {
+    void label; void wl; void gl;
+    const xs = nachKat.get(key) || [];
+    if (!xs.length) continue;
+    b.push("<div class=\"karte\"><h3>" + esc(mehrzahl) + " offen <span class=\"zusatz\">" + xs.length + "</span></h3>");
+    for (const x of xs) {
+      b.push("<button class=\"medtitel\" data-aktion=\"medien-titel-menue\" data-kat=\"" + esc(x.kat) + "\" data-titel=\"" + esc(x.titel) + "\" data-zusatz=\"" + esc(x.zusatz) + "\">" + esc(x.titel) +
+        (x.zusatz ? "<span class=\"zu\">" + esc(x.zusatz) + "</span>" : "") + "</button>");
+    }
+    b.push("</div>");
+  }
+
+  const mitInhalt = durch.filter((l) => l.eintraege.length);
+  if (mitInhalt.length) {
+    b.push("<div class=\"karte\"><h3>Durch</h3>");
+    for (const l of mitInhalt) {
+      b.push("<div class=\"hilfetext\" style=\"margin-top:8px\">" + esc(l.mehrzahl) + ", " + l.eintraege.length + " " + esc(l.partizip) + "</div>");
+      for (const x of l.eintraege.slice(-12).reverse()) {
+        b.push("<div class=\"durchzeile\"><div class=\"kopf\"><span>" + esc(x.titel) + "</span>" +
+          (x.note ? "<span class=\"medpill\">" + esc(x.note) + "</span>" : "") + "</div>" +
+          medienNotizDetails(l.key, x.titel) + "</div>");
+      }
+    }
+    b.push("</div>");
+  }
+
+  $("#blatt-medien").innerHTML = b.join("");
+}
+
+function medienFertigSheet(kat, titel) {
+  const k = medienKat(kat);
+  sheetOeffnen("<div class=\"griff\"></div><h2>" + esc(titel) + " <span class=\"zusatz\">" + esc(k[5]) + "</span></h2>" +
+    "<label class=\"feld\">Bewertung 0 bis 10, optional</label>" +
+    "<input type=\"number\" id=\"med-bew\" min=\"0\" max=\"10\" step=\"0.5\" inputmode=\"decimal\">" +
+    "<label class=\"feld\">Text dazu, optional, landet in der Notiz</label>" +
+    "<textarea id=\"med-text\"></textarea>" +
+    "<button class=\"knopf\" data-aktion=\"medien-fertig\" data-kat=\"" + esc(kat) + "\" data-titel=\"" + esc(titel) + "\" style=\"margin-top:8px\">Als " + esc(k[5]) + " speichern</button>");
+}
+
+function medienTitelSheet(kat, titel, zusatz) {
+  const idx = "data-kat=\"" + esc(kat) + "\" data-titel=\"" + esc(titel) + "\"";
+  sheetOeffnen("<div class=\"griff\"></div><h2>" + esc(titel) + "</h2>" +
+    (zusatz ? "<div class=\"hilfetext\" style=\"margin-bottom:10px\">" + esc(zusatz) + "</div>" : "") +
+    "<button class=\"aktion\" data-aktion=\"medien-start\" " + idx + ">Starten<small>wandert zu Gerade dabei</small></button>" +
+    "<button class=\"aktion\" data-aktion=\"medien-fertig-frage\" " + idx + ">Schon fertig<small>direkt bewerten</small></button>" +
+    "<button class=\"aktion\" data-aktion=\"sheet-zu\">Abbrechen</button>");
 }
 
 // ------------------------------------------------------------ Sheets
@@ -2818,11 +3208,57 @@ const AKTIONEN = {
         return { "Dashboard/Training.md": r.text, "Dashboard/Habits.md": h.text };
       }, "Mobil: Training " + uebung), "Satz notiert");
   },
-  "training-satz-weg": async (el) => {
+  "training-satz-edit": (el) => {
     const { tag, uebung } = el.dataset;
+    const nr = parseInt(el.dataset.nr, 10);
+    const roh = trainingHeutigeRoh(text("Dashboard/Training.md"), tag, uebung);
+    if (nr >= roh.length) { toast("Satz nicht mehr da, lade neu", true); aktualisieren(true); return; }
+    trainingSatzEditSheet(tag, uebung, nr, roh[nr].gewicht, roh[nr].wdh);
+  },
+  "training-satz-aendern": async (el) => {
+    const { tag, uebung } = el.dataset;
+    const nr = parseInt(el.dataset.nr, 10);
+    const gew = $("#tr-edit-gew").value.trim();
+    const wdh = $("#tr-edit-wdh").value.trim();
+    if (!wdh) { toast("Wiederholungen fehlen", true); return; }
+    sheetZu();
     await mitToast(() => transaktion(["Dashboard/Training.md"],
-      (texte) => ({ "Dashboard/Training.md": trainingSatzWeg(texte["Dashboard/Training.md"], tag, uebung, iso(heute())).text }),
-      "Mobil: Training " + uebung + " Satz raus"), "Letzter Satz ist raus");
+      (texte) => {
+        const roh = trainingHeutigeRoh(texte["Dashboard/Training.md"], tag, uebung);
+        if (nr >= roh.length) throw new Error("Satz nicht mehr da, bitte neu laden");
+        roh[nr] = { gewicht: gew, wdh };
+        return { "Dashboard/Training.md": trainingSaetzeSetzen(texte["Dashboard/Training.md"], tag, uebung, roh, iso(heute())).text };
+      }, "Mobil: Training " + uebung + " Satz geaendert"), "Satz geändert");
+  },
+  "training-satz-loeschen": async (el) => {
+    const { tag, uebung } = el.dataset;
+    const nr = parseInt(el.dataset.nr, 10);
+    sheetZu();
+    await mitToast(() => transaktion(["Dashboard/Training.md"],
+      (texte) => {
+        const roh = trainingHeutigeRoh(texte["Dashboard/Training.md"], tag, uebung);
+        if (nr >= roh.length) throw new Error("Satz nicht mehr da, bitte neu laden");
+        roh.splice(nr, 1);
+        return { "Dashboard/Training.md": trainingSaetzeSetzen(texte["Dashboard/Training.md"], tag, uebung, roh, iso(heute())).text };
+      }, "Mobil: Training " + uebung + " Satz raus"), "Satz ist raus");
+  },
+  "training-uebernehmen": async (el) => {
+    const { tag, uebung } = el.dataset;
+    await mitToast(() => transaktion(["Dashboard/Training.md", "Dashboard/Habits.md"],
+      (texte) => {
+        const d = parseTraining(texte["Dashboard/Training.md"]);
+        const h = iso(heute());
+        const frueher = d.log.filter((x) => x.uebung.toLowerCase() === uebung.toLowerCase() && iso(x.datum) !== h);
+        if (!frueher.length) throw new Error("Kein letztes Mal gefunden");
+        const roh = frueher[frueher.length - 1].saetze.map((s) => ({
+          gewicht: s.gewicht === null ? "" : trainingGewichtText(s.gewicht),
+          wdh: String(s.wdh),
+        }));
+        const r = trainingSaetzeSetzen(texte["Dashboard/Training.md"], tag, uebung, roh, h);
+        const hb = habitSetzen(texte["Dashboard/Habits.md"], "gym", true, h);
+        return { "Dashboard/Training.md": r.text, "Dashboard/Habits.md": hb.text };
+      }, "Mobil: Training " + uebung + " wie letztes Mal"),
+    "Übernommen, jetzt einzelne Sätze antippen zum Anpassen");
   },
 
   "kal-monat": (el) => { kalMonat = plusMonat(kalMonat, parseInt(el.dataset.schritt, 10)); renderKalender(); },
@@ -2927,6 +3363,86 @@ const AKTIONEN = {
         return { "Dashboard/Sozial.md": sozialStufeSetzen(texte["Dashboard/Sozial.md"], stufe, daten.stufen.map((x) => x.stufe)).text };
       }, "Mobil: Sozial-Stufe " + stufe), "Stufe " + stufe + " gesetzt");
   },
+
+  "medien-notiz": async (el) => {
+    const det = el.closest("details");
+    det.open = !det.open;
+    const box = det.querySelector(".mednotizinhalt");
+    if (!det.open || box.dataset.geladen === "1") return;
+    box.textContent = "Lade...";
+    try {
+      const fund = await medienNotizFinden(el.dataset.kat, el.dataset.titel);
+      box.textContent = fund.eintrag.text.trim() || "Noch keine Notiz.";
+      box.dataset.geladen = "1";
+    } catch (e) { box.textContent = "Laden fehlgeschlagen: " + e.message; }
+  },
+  "medien-merken": async (el) => {
+    const { kat, titel } = el.dataset;
+    const wert = el.closest(".karte").querySelector(".med-fort").value.trim();
+    const wl = "Medien/" + medienKat(kat)[2];
+    await mitToast(() => transaktion([wl],
+      (texte) => ({ [wl]: medienFortschritt(texte[wl], titel, wert).text }),
+      "Mobil: " + titel + " Fortschritt"), "Gemerkt");
+  },
+  "medien-fertig-frage": (el) => medienFertigSheet(el.dataset.kat, el.dataset.titel),
+  "medien-fertig": async (el) => {
+    const { kat, titel } = el.dataset;
+    const bew = $("#med-bew").value.trim();
+    const textOpt = $("#med-text").value.trim();
+    sheetZu();
+    const k = medienKat(kat);
+    const wl = "Medien/" + k[2], gl = "Medien/" + k[3];
+    await mitToast(async () => {
+      const fund = await medienNotizFinden(kat, titel);
+      await transaktion([wl, gl, fund.pfad], (texte) => {
+        const r = medienFertig(texte[wl], texte[gl], titel, bew);
+        const out = { [wl]: r.wlText, [gl]: r.glText };
+        const neu = [];
+        if (r.zusatz) neu.push(r.zusatz);
+        if (r.note || textOpt) neu.push((r.note.trim() + " " + textOpt).trim());
+        const n = medienNotizErgaenzen(texte[fund.pfad], neu);
+        if (n !== null) out[fund.pfad] = n;
+        return out;
+      }, "Mobil: " + titel + " " + k[5]);
+    }, "Als " + k[5] + " gespeichert");
+  },
+  "medien-start": async (el) => {
+    const { kat, titel } = el.dataset;
+    sheetZu();
+    medVorschlag = null;
+    const wl = "Medien/" + medienKat(kat)[2];
+    await mitToast(() => transaktion([wl],
+      (texte) => ({ [wl]: medienAufstarten(texte[wl], titel).text }),
+      "Mobil: " + titel + " gestartet"), titel + " läuft jetzt");
+  },
+  "medien-add": async () => {
+    const titel = $("#med-neutitel").value.trim();
+    const kat = $("#med-neukat").value;
+    if (!titel) { toast("Titel fehlt", true); return; }
+    const k = medienKat(kat);
+    const wl = "Medien/" + k[2];
+    await mitToast(async () => {
+      let neu = null;
+      await transaktion([wl], (texte) => {
+        const r = medienHinzufuegen(texte[wl], titel);
+        neu = r.titel;
+        if (r.text === null) throw new Error("Steht schon auf der Watchliste");
+        return { [wl]: r.text };
+      }, "Mobil: " + titel + " auf die Watchliste");
+      const fund = await medienNotizFinden(kat, neu);
+      if (!fund.eintrag.sha) {
+        try { await putDatei(fund.pfad, "", "Mobil: Notiz " + neu + " angelegt"); }
+        catch (e) { /* Notiz gibt es wohl schon, egal */ }
+      }
+    }, "Auf der Watchliste");
+  },
+  "medien-wuerfeln": () => {
+    const m = parseMedienAlle(medienWlTexte());
+    if (!m.backlog.length) { toast("Kein offener Titel auf den Watchlisten", true); return; }
+    medVorschlag = m.backlog[Math.floor(Math.random() * m.backlog.length)];
+    renderMedien();
+  },
+  "medien-titel-menue": (el) => medienTitelSheet(el.dataset.kat, el.dataset.titel, el.dataset.zusatz),
 };
 
 document.addEventListener("click", (ev) => {
