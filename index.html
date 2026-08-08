@@ -217,6 +217,13 @@ label.feld { display: block; font-size: 12.5px; color: var(--leise); margin-bott
 .trsatz:active { border-color: var(--akzent); }
 
 /* Medien */
+.medkat { border-left: 4px solid var(--kf, var(--rand)); }
+.med-serie { --kf: #3987e5; }
+.med-film { --kf: #d95926; }
+.med-anime { --kf: #199e70; }
+.med-manga { --kf: #c98500; }
+.med-buch { --kf: #d55181; }
+.med-spiel { --kf: #9085e9; }
 .medtitel {
   display: block; width: 100%; text-align: left; background: none; border: 0;
   border-bottom: 1px solid var(--rand); color: var(--text);
@@ -1909,8 +1916,24 @@ const MEDIEN_KAT = [
   ["anime", "Anime", "Watchliste - Animes.md", "geschaute Animes.md", "Animes", "geschaut"],
   ["manga", "Manga", "Watchliste - Mangas.md", "gelesene Mangas.md", "Mangas", "gelesen"],
   ["buch", "Buch", "Watchliste - Bücher.md", "gelesene Bücher.md", "Bücher", "gelesen"],
+  ["spiel", "Spiel", "Watchliste - Spiele.md", "gespielte Spiele.md", "Spiele", "gespielt"],
 ];
-const MEDIEN_ORDNER = { serie: "Serien", film: "Filme", anime: "Anime", manga: "Manga", buch: "Bücher" };
+const MEDIEN_ORDNER = { serie: "Serien", film: "Filme", anime: "Anime", manga: "Manga", buch: "Bücher", spiel: "Spiele" };
+
+// Spiele speichern "Plattform: Fortschritt" im Fortschritt-Feld.
+function spielFortschrittTeile(fort) {
+  fort = String(fort || "").trim();
+  const p = fort.indexOf(":");
+  if (p >= 0) return { plattform: fort.slice(0, p).trim(), fortschritt: fort.slice(p + 1).trim() };
+  return { plattform: "", fortschritt: fort };
+}
+
+function spielFortschrittBauen(plattform, fortschritt) {
+  plattform = String(plattform || "").replace(/:/g, " ").trim();
+  fortschritt = String(fortschritt || "").trim();
+  if (plattform) return fortschritt ? plattform + ": " + fortschritt : plattform + ":";
+  return fortschritt;
+}
 const MEDIEN_LINK_ZUSATZ_RE = /^\[\[(.+?)\]\]\s*(.*)$/;
 
 function medienKat(kat) {
@@ -2083,6 +2106,7 @@ if (typeof module !== "undefined") {
     medienTeile, medienIndex, parseMedienAlle, parseGeschautAlle,
     medienHinzufuegen, medienAufstarten, medienFortschritt, medienNote,
     medienFertig, medienNotizErgaenzen,
+    spielFortschrittTeile, spielFortschrittBauen,
   };
 }
 
@@ -2137,7 +2161,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 6;
+const VERSION = 10;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -2855,16 +2879,18 @@ function medienGlTexte() {
   return o;
 }
 function medienNotizPfad(kat, titel) {
+  // Spiele-Notizen wohnen historisch unter Gaming/Games.
+  if (kat === "spiel") return "Gaming/Games/" + notizName(titel) + ".md";
   return "Medien/" + MEDIEN_ORDNER[kat] + "/" + notizName(titel) + ".md";
 }
 
-// Notiz-Pfad zum Titel: erst der Kategorie-Ordner, dann flach in Medien/.
+// Notiz-Pfad zum Titel: erst der Kategorie-Ordner, dann flach daneben.
 // Gibt {pfad, sha} des ersten Treffers, sonst den Ordner-Pfad ohne sha.
 async function medienNotizFinden(kat, titel) {
   const haupt = medienNotizPfad(kat, titel);
   const d = await ladeDatei(haupt);
   if (d.sha) return { pfad: haupt, eintrag: d };
-  const flach = "Medien/" + notizName(titel) + ".md";
+  const flach = (kat === "spiel" ? "Gaming/" : "Medien/") + notizName(titel) + ".md";
   const d2 = await ladeDatei(flach);
   if (d2.sha) return { pfad: flach, eintrag: d2 };
   return { pfad: haupt, eintrag: d };
@@ -2889,10 +2915,18 @@ function renderMedien() {
   b.push("</div>");
   for (const d of m.dabei) {
     const idx = "data-kat=\"" + esc(d.kat) + "\" data-titel=\"" + esc(d.titel) + "\"";
-    b.push("<div class=\"karte\"><h3>" + esc(d.titel) + " <span class=\"zusatz\">" + esc(d.typ) + "</span></h3>");
+    b.push("<div class=\"karte medkat med-" + esc(d.kat) + "\"><h3>" + esc(d.titel) + " <span class=\"zusatz\">" + esc(d.typ) + "</span></h3>");
     if (d.zusatz) b.push("<div class=\"hilfetext\">" + esc(d.zusatz) + "</div>");
-    b.push("<label class=\"feld\">Folge oder Staffel</label>" +
-      "<input type=\"text\" class=\"med-fort\" value=\"" + esc(d.fortschritt) + "\">");
+    if (d.kat === "spiel") {
+      const sp = spielFortschrittTeile(d.fortschritt);
+      b.push("<div class=\"zeile2\"><div><label class=\"feld\">Plattform</label>" +
+        "<input type=\"text\" class=\"med-plat\" value=\"" + esc(sp.plattform) + "\"></div>" +
+        "<div><label class=\"feld\">Fortschritt</label>" +
+        "<input type=\"text\" class=\"med-fort\" value=\"" + esc(sp.fortschritt) + "\"></div></div>");
+    } else {
+      b.push("<label class=\"feld\">Folge oder Staffel</label>" +
+        "<input type=\"text\" class=\"med-fort\" value=\"" + esc(d.fortschritt) + "\">");
+    }
     b.push("<div class=\"zeile2\" style=\"margin-top:8px\">" +
       "<button class=\"knopf zweit\" data-aktion=\"medien-merken\" " + idx + ">Merken</button>" +
       "<button class=\"knopf\" data-aktion=\"medien-fertig-frage\" " + idx + ">Fertig</button></div>");
@@ -2929,7 +2963,7 @@ function renderMedien() {
     void label; void wl; void gl;
     const xs = nachKat.get(key) || [];
     if (!xs.length) continue;
-    b.push("<div class=\"karte\"><h3>" + esc(mehrzahl) + " offen <span class=\"zusatz\">" + xs.length + "</span></h3>");
+    b.push("<div class=\"karte medkat med-" + esc(key) + "\"><h3>" + esc(mehrzahl) + " offen <span class=\"zusatz\">" + xs.length + "</span></h3>");
     for (const x of xs) {
       b.push("<button class=\"medtitel\" data-aktion=\"medien-titel-menue\" data-kat=\"" + esc(x.kat) + "\" data-titel=\"" + esc(x.titel) + "\" data-zusatz=\"" + esc(x.zusatz) + "\">" + esc(x.titel) +
         (x.zusatz ? "<span class=\"zu\">" + esc(x.zusatz) + "</span>" : "") + "</button>");
@@ -3152,8 +3186,17 @@ const AKTIONEN = {
   "supp": async (el) => {
     const supp = el.dataset.supp;
     const an = !el.classList.contains("an");
-    await mitToast(() => transaktion(["Dashboard/Gesundheit.md"],
-      (texte) => ({ "Dashboard/Gesundheit.md": gesundheitSupp(texte["Dashboard/Gesundheit.md"], supp, an, iso(heute())).text }),
+    // Alle heute faelligen Supplemente genommen setzt das Habit supps,
+    // wie am PC. Losklicken nimmt es wieder weg.
+    await mitToast(() => transaktion(["Dashboard/Gesundheit.md", "Dashboard/Habits.md"],
+      (texte) => {
+        const r = gesundheitSupp(texte["Dashboard/Gesundheit.md"], supp, an, iso(heute()));
+        const g = parseGesundheit(r.text);
+        const faellig = g.supplemente.filter((s) => suppFaellig(s, heute())).map((s) => s.key);
+        const alle = faellig.length ? faellig.every((k) => r.supp.includes(k)) : r.supp.length > 0;
+        const h = habitSetzen(texte["Dashboard/Habits.md"], "supps", alle, iso(heute()));
+        return { "Dashboard/Gesundheit.md": r.text, "Dashboard/Habits.md": h.text };
+      },
       "Mobil: Supplement " + supp + (an ? "" : " weg")));
   },
   "wasser": async (el) => {
@@ -3378,7 +3421,10 @@ const AKTIONEN = {
   },
   "medien-merken": async (el) => {
     const { kat, titel } = el.dataset;
-    const wert = el.closest(".karte").querySelector(".med-fort").value.trim();
+    const karte = el.closest(".karte");
+    let wert = karte.querySelector(".med-fort").value.trim();
+    const pl = karte.querySelector(".med-plat");
+    if (pl) wert = spielFortschrittBauen(pl.value, wert);
     const wl = "Medien/" + medienKat(kat)[2];
     await mitToast(() => transaktion([wl],
       (texte) => ({ [wl]: medienFortschritt(texte[wl], titel, wert).text }),
