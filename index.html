@@ -217,6 +217,11 @@ label.feld { display: block; font-size: 12.5px; color: var(--leise); margin-bott
 .trsatz:active { border-color: var(--akzent); }
 
 /* Medien */
+/* Untertabs: immer genau eine Kategorie sichtbar, sonst scrollt man am
+   Handy an fremden Listen vorbei. Farbe wie der Rand der Karten darunter. */
+.medsub { margin-bottom: 12px; gap: 7px; }
+.medsub .chip { border-left: 4px solid var(--kf, var(--rand)); padding: 7px 12px; }
+.medsub .chip.an { background: var(--kf, var(--akzent-dunkel)); border-color: var(--kf, var(--akzent-dunkel)); color: #fff; }
 .medkat { border-left: 4px solid var(--kf, var(--rand)); }
 .med-serie { --kf: #3987e5; }
 .med-film { --kf: #d95926; }
@@ -2623,7 +2628,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 11;
+const VERSION = 12;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -3355,6 +3360,14 @@ function trainingTagSheet() {
 let medVorschlag = null;   // aktueller Wuerfel-Vorschlag
 let medWuerfelKat = "";    // Kategorie, aus der gewuerfelt wird
 
+// Aktiver Untertab. Der Reiter zeigt immer genau eine Kategorie, sonst
+// scrollt man am Handy ewig an fremden Listen vorbei. Die Wahl ueberlebt
+// das Neuladen.
+let medKat = "";
+try { medKat = localStorage.getItem("medkat") || ""; } catch (e) { /* egal */ }
+if (!MEDIEN_KAT.some((k) => k[0] === medKat)) medKat = MEDIEN_KAT[0][0];
+medWuerfelKat = medKat;
+
 function medienWlTexte() {
   const o = {};
   for (const k of MEDIEN_KAT) o[k[0]] = text("Medien/" + k[2]);
@@ -3393,13 +3406,26 @@ function medienNotizDetails(kat, titel) {
 function renderMedien() {
   const m = parseMedienAlle(medienWlTexte());
   const durch = parseGeschautAlle(medienGlTexte());
+  const kat = medienKat(medKat);
   const b = [];
 
-  // Neuer Eintrag steht ganz oben, das ist der haeufigste Griff.
+  // Untertabs ganz oben. Gefiltert wird nur die Anzeige, geschrieben wird
+  // weiter in dieselben Dateien wie am PC.
+  b.push("<div class=\"chips medsub\">" + MEDIEN_KAT.map((k) => {
+    const n = m.dabei.filter((x) => x.kat === k[0]).length +
+      m.backlog.filter((x) => x.kat === k[0]).length;
+    return "<button class=\"chip med-" + k[0] + (medKat === k[0] ? " an" : "") +
+      "\" data-aktion=\"medien-kat\" data-kat=\"" + k[0] + "\">" + esc(k[4]) +
+      "<span class=\"strk\">" + n + "</span></button>";
+  }).join("") + "</div>");
+
+  // Neuer Eintrag steht ganz oben, das ist der haeufigste Griff. Die
+  // Kategorie ist auf den aktiven Untertab vorbelegt.
   b.push("<div class=\"karte\"><h3>Neu hinzufügen</h3>" +
     "<label class=\"feld\">Titel</label><input type=\"text\" id=\"med-neutitel\">" +
     "<label class=\"feld\">Kategorie</label><select id=\"med-neukat\">" +
-    MEDIEN_KAT.map((k) => "<option value=\"" + k[0] + "\">" + k[1] + "</option>").join("") +
+    MEDIEN_KAT.map((k) => "<option value=\"" + k[0] + "\"" +
+      (k[0] === medKat ? " selected" : "") + ">" + k[1] + "</option>").join("") +
     "</select><button class=\"knopf\" data-aktion=\"medien-add\" style=\"margin-top:8px\">Hinzufügen</button></div>");
 
   // Was als naechstes, auf Wunsch nur aus einer Kategorie, genau wie am PC.
@@ -3428,12 +3454,14 @@ function renderMedien() {
   }
   b.push("</div>");
 
-  b.push("<div class=\"karte\"><h3>Gerade dabei</h3>");
-  if (!m.dabei.length) {
+  const dabei = m.dabei.filter((d) => d.kat === medKat);
+  b.push("<div class=\"karte\"><h3>Gerade dabei <span class=\"zusatz\">" +
+    esc(kat[4]) + ", " + dabei.length + "</span></h3>");
+  if (!dabei.length) {
     b.push("<div class=\"hilfetext\">Nichts läuft gerade. Würfel oben einen Vorschlag oder starte einen offenen Titel.</div>");
   }
   b.push("</div>");
-  for (const d of m.dabei) {
+  for (const d of dabei) {
     const idx = "data-kat=\"" + esc(d.kat) + "\" data-titel=\"" + esc(d.titel) + "\"";
     b.push("<div class=\"karte medkat med-" + esc(d.kat) + "\"><h3>" + esc(d.titel) + " <span class=\"zusatz\">" + esc(d.typ) + "</span></h3>");
     if (d.zusatz) b.push("<div class=\"hilfetext\">" + esc(d.zusatz) + "</div>");
@@ -3454,33 +3482,26 @@ function renderMedien() {
     b.push("</div>");
   }
 
-  const nachKat = new Map();
-  for (const x of m.backlog) {
-    if (!nachKat.has(x.kat)) nachKat.set(x.kat, []);
-    nachKat.get(x.kat).push(x);
+  const offen = m.backlog.filter((x) => x.kat === medKat);
+  b.push("<div class=\"karte medkat med-" + esc(medKat) + "\"><h3>" +
+    esc(kat[4]) + " offen <span class=\"zusatz\">" + offen.length + "</span></h3>");
+  if (!offen.length) {
+    b.push("<div class=\"hilfetext\">Nichts offen. Trag oben etwas ein.</div>");
   }
-  for (const [key, label, wl, gl, mehrzahl] of MEDIEN_KAT) {
-    void label; void wl; void gl;
-    const xs = nachKat.get(key) || [];
-    if (!xs.length) continue;
-    b.push("<div class=\"karte medkat med-" + esc(key) + "\"><h3>" + esc(mehrzahl) + " offen <span class=\"zusatz\">" + xs.length + "</span></h3>");
-    for (const x of xs) {
-      b.push("<button class=\"medtitel\" data-aktion=\"medien-titel-menue\" data-kat=\"" + esc(x.kat) + "\" data-titel=\"" + esc(x.titel) + "\" data-zusatz=\"" + esc(x.zusatz) + "\">" + esc(x.titel) +
-        (x.zusatz ? "<span class=\"zu\">" + esc(x.zusatz) + "</span>" : "") + "</button>");
-    }
-    b.push("</div>");
+  for (const x of offen) {
+    b.push("<button class=\"medtitel\" data-aktion=\"medien-titel-menue\" data-kat=\"" + esc(x.kat) + "\" data-titel=\"" + esc(x.titel) + "\" data-zusatz=\"" + esc(x.zusatz) + "\">" + esc(x.titel) +
+      (x.zusatz ? "<span class=\"zu\">" + esc(x.zusatz) + "</span>" : "") + "</button>");
   }
+  b.push("</div>");
 
-  const mitInhalt = durch.filter((l) => l.eintraege.length);
-  if (mitInhalt.length) {
-    b.push("<div class=\"karte\"><h3>Durch</h3>");
-    for (const l of mitInhalt) {
-      b.push("<div class=\"hilfetext\" style=\"margin-top:8px\">" + esc(l.mehrzahl) + ", " + l.eintraege.length + " " + esc(l.partizip) + "</div>");
-      for (const x of l.eintraege.slice(-12).reverse()) {
-        b.push("<div class=\"durchzeile\"><div class=\"kopf\"><span>" + esc(x.titel) + "</span>" +
-          (x.note ? "<span class=\"medpill\">" + esc(x.note) + "</span>" : "") + "</div>" +
-          medienNotizDetails(l.key, x.titel) + "</div>");
-      }
+  const fertig = durch.filter((l) => l.key === medKat)[0];
+  if (fertig && fertig.eintraege.length) {
+    b.push("<div class=\"karte medkat med-" + esc(medKat) + "\"><h3>Durch <span class=\"zusatz\">" +
+      fertig.eintraege.length + " " + esc(fertig.partizip) + "</span></h3>");
+    for (const x of fertig.eintraege.slice(-12).reverse()) {
+      b.push("<div class=\"durchzeile\"><div class=\"kopf\"><span>" + esc(x.titel) + "</span>" +
+        (x.note ? "<span class=\"medpill\">" + esc(x.note) + "</span>" : "") + "</div>" +
+        medienNotizDetails(fertig.key, x.titel) + "</div>");
     }
     b.push("</div>");
   }
@@ -4247,6 +4268,14 @@ const AKTIONEN = {
     renderMedien();
   },
   "medien-titel-menue": (el) => medienTitelSheet(el.dataset.kat, el.dataset.titel, el.dataset.zusatz),
+  "medien-kat": (el) => {
+    medKat = el.dataset.kat;
+    medWuerfelKat = medKat;   // der Wuerfel folgt dem Untertab
+    medVorschlag = null;
+    try { localStorage.setItem("medkat", medKat); } catch (e) { /* egal */ }
+    renderMedien();
+    window.scrollTo(0, 0);
+  },
 
   "rez-filter": (el) => {
     rezFilter = el.dataset.filter;
