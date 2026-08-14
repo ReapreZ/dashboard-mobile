@@ -248,6 +248,40 @@ label.feld { display: block; font-size: 12.5px; color: var(--leise); margin-bott
   background: var(--karte2); border-radius: 10px; padding: 8px 10px;
 }
 
+/* Rezepte */
+.kochzeile { display: flex; gap: 10px; align-items: baseline; padding: 8px 2px; border-top: 1px solid var(--rand); }
+.kochzeile:first-of-type { border-top: 0; }
+.kochzeile .wann { flex: 0 0 62px; color: var(--leise); font-size: 13.5px; }
+.kochzeile .wann.jetzt { color: var(--akzent); font-weight: 600; }
+.kochzeile .titel { flex: 1; overflow-wrap: anywhere; }
+.kochzeile .zu { display: block; color: var(--leise); font-size: 12px; }
+.reztitel { font-size: 17px; font-weight: 700; margin-bottom: 8px; overflow-wrap: anywhere; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.pill {
+  font-size: 12px; padding: 2px 9px; border-radius: 999px;
+  background: var(--karte2); border: 1px solid var(--rand); color: var(--leise);
+}
+.pill.kat { color: var(--akzent); border-color: var(--akzent-dunkel); font-weight: 600; }
+.pill.ok { color: var(--ok); }
+.pill.naehr { white-space: normal; }
+.rezdet { border-top: 1px solid var(--rand); margin-top: 8px; }
+.rezdet summary { list-style: none; display: flex; align-items: center; gap: 8px; padding: 9px 2px; font-weight: 600; font-size: 14.5px; }
+.rezdet summary::-webkit-details-marker { display: none; }
+.rezdet summary .anz { margin-left: auto; color: var(--leise); font-weight: 400; font-size: 13px; }
+.rezdet summary .pfeil { color: var(--leise); font-size: 11px; transition: transform .15s; }
+.rezdet[open] summary .pfeil { transform: rotate(180deg); }
+.rezliste { margin: 0 0 10px; padding-left: 22px; font-size: 14.5px; }
+.rezliste li { margin: 3px 0; overflow-wrap: anywhere; }
+.rezfuss { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.rezfuss .chip { font-size: 13.5px; padding: 6px 12px; text-decoration: none; }
+.katchips { margin-bottom: 4px; }
+.katchip { font-size: 13.5px; padding: 6px 12px; }
+.wartezeile { display: flex; gap: 10px; align-items: baseline; padding: 8px 2px; border-top: 1px solid var(--rand); }
+.wartezeile .titel { flex: 1; min-width: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 5px; align-items: baseline; }
+.wartezeile .titel a { color: var(--akzent); text-decoration: none; }
+.wartezeile .zu { color: var(--leise); font-size: 12px; }
+#rezsuche { margin-bottom: 10px; }
+
 /* Tabbar */
 nav.tabs {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
@@ -330,11 +364,14 @@ nav.tabs button.aktiv { color: var(--akzent); }
 <main>
   <div class="standzeile" id="standzeile"></div>
   <div class="blatt aktiv" id="blatt-heute"></div>
-  <div class="blatt" id="blatt-kalender"></div>
-  <div class="blatt" id="blatt-tagebuch"></div>
+  <div class="blatt" id="blatt-kalender">
+    <div id="teil-kalender"></div>
+    <div id="teil-tagebuch"></div>
+  </div>
   <div class="blatt" id="blatt-training"></div>
   <div class="blatt" id="blatt-medien"></div>
   <div class="blatt" id="blatt-sozial"></div>
+  <div class="blatt" id="blatt-rezepte"></div>
 </main>
 <button class="fab sichtbar" id="fab" data-aktion="fab" aria-label="Neues Todo">+</button>
 <nav class="tabs">
@@ -346,9 +383,9 @@ nav.tabs button.aktiv { color: var(--akzent); }
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     Kalender
   </button>
-  <button data-aktion="tab" data-tab="tagebuch">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-    Tagebuch
+  <button data-aktion="tab" data-tab="rezepte">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v9a3 3 0 0 0 6 0V2"/><path d="M10 11v11"/><path d="M18 2c-1.7 1.3-2.5 3.4-2.5 6 0 1.7.5 3 1.5 3.5V22"/></svg>
+    Rezepte
   </button>
   <button data-aktion="tab" data-tab="training">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/></svg>
@@ -2077,6 +2114,424 @@ function medienNotizErgaenzen(alt, zeilenNeu) {
   return joinZeilen(zeilen);
 }
 
+
+// ------------------------------------------------------------- Rezepte
+// Woertlich portiert aus aktionen.py, Abschnitt Rezepte. Rezepte sind
+// eigene Notizen unter Rezepte/ im Vault, die Warteschlange liegt in
+// Dashboard/Rezepte - Warteschlange.md, Kochtermine sind normale Termine
+// in Kalender.md mit dem Praefix "Kochen: ".
+
+const KATEGORIEN = [
+  ["fruehstueck", "Frühstück"],
+  ["mittagessen", "Mittagessen"],
+  ["dessert", "Dessert"],
+  ["schnell", "Schnell zubereitet"],
+  ["protein", "Protein"],
+  ["vegetarisch", "Vegetarisch"],
+  ["vegan", "Vegan"],
+  ["mealprep", "Meal Prep"],
+  ["special", "Special"],
+];
+const KAT_KEYS = KATEGORIEN.map((x) => x[0]);
+const KAT_LABEL = {};
+for (const kl of KATEGORIEN) KAT_LABEL[kl[0]] = kl[1];
+
+const KAT_ALIAS = {
+  "frühstück": "fruehstueck", "fruestueck": "fruehstueck",
+  "breakfast": "fruehstueck", "morgens": "fruehstueck",
+  "mittag": "mittagessen", "lunch": "mittagessen",
+  "abendessen": "mittagessen", "dinner": "mittagessen",
+  "nachtisch": "dessert", "süß": "dessert", "suess": "dessert",
+  "schnell-zubereitet": "schnell", "schnellzubereitet": "schnell",
+  "quick": "schnell", "eiweiss": "protein", "eiweiß": "protein",
+  "meal-prep": "mealprep", "meal_prep": "mealprep",
+  "mealprepping": "mealprep", "vorkochen": "mealprep",
+  "besonders": "special",
+  "veggie": "vegetarisch", "vegetarian": "vegetarisch",
+  "pflanzlich": "vegan", "plantbased": "vegan", "plant-based": "vegan",
+};
+
+const REZEPT_META_RE = /^(Portionen|Dauer|Nährwerte|Quelle|Angelegt)\s*:\s*(.*)$/i;
+const LISTENZEILE_RE = /^\s*(?:[-*+]|\d{1,3}[.)])\s+/;
+const URL_RE = /^https?:\/\/[^\s<>"']+$/i;
+const TAG_ERLAUBT_RE = /^[A-Za-zÄÖÜäöüß0-9_-]+$/;
+const TAGZEILE_RE = /^(?:#[A-Za-zÄÖÜäöüß0-9_-]+[ \t]*)+$/;
+const TAG_IN_ZEILE_RE = /#([A-Za-zÄÖÜäöüß0-9_-]+)/g;
+const VERBOTEN_IM_DATEINAMEN = "\\/:*?\"<>|";
+
+const QUEUE_RE = /^\s*[-*]\s*(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2})\s*\|\s*(\S+)\s*(?:\|(.*))?$/;
+
+const QUEUE_GRUNDGERUEST = [
+  "# Rezepte - Warteschlange",
+  "",
+  "<!-- Video-Links, aus denen noch ein Rezept werden soll. Traegt das",
+  "     Dashboard ein, Reiter Rezepte. Claude arbeitet die offenen Zeilen ab",
+  "     und legt daraus Notizen unter Rezepte/ an. Format:",
+  "     - JJJJ-MM-TT HH:MM | Adresse | #kategorien | optionaler Text",
+  "     Kategorien und Text sind beide optional. Die Kategorien uebernimmt",
+  "     Claude unveraendert ins fertige Rezept. -->",
+  "",
+  "---",
+  "",
+  "## Offen",
+  "",
+  "## Fertig",
+  "",
+];
+
+const DIENSTE = [
+  ["tiktok.", "TikTok"],
+  ["instagram.", "Instagram"],
+  ["youtube.", "YouTube"],
+  ["youtu.be", "YouTube"],
+  ["facebook.", "Facebook"],
+  ["pinterest.", "Pinterest"],
+];
+
+const KOCH_PREFIX = "Kochen: ";
+const REZEPT_ORDNER = "Rezepte";
+const REZEPT_ARCHIV = "_Archiv";
+const REZEPT_QUEUE_PFAD = "Dashboard/Rezepte - Warteschlange.md";
+
+// Python: str.strip() ohne Argument, plus strip(zeichen) fuer Punkte.
+function stripPunkte(s) { return s.replace(/^\.+/, "").replace(/\.+$/, ""); }
+
+function katKey(roh) {
+  const t = String(roh == null ? "" : roh).trim().replace(/^#+/, "").toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(KAT_LABEL, t)) return t;
+  return Object.prototype.hasOwnProperty.call(KAT_ALIAS, t) ? KAT_ALIAS[t] : null;
+}
+
+function katKeys(roh) {
+  const kandidaten = Array.isArray(roh)
+    ? roh.slice()
+    : String(roh == null ? "" : roh).split(/[\s,]+/);
+  const out = [];
+  for (const t of kandidaten) {
+    const k = katKey(t);
+    if (k && !out.includes(k)) out.push(k);
+  }
+  out.sort((a, b) => KAT_KEYS.indexOf(a) - KAT_KEYS.indexOf(b));
+  return out;
+}
+
+function dienstName(url) {
+  const klein = String(url || "").toLowerCase();
+  for (const d of DIENSTE) if (klein.includes(d[0])) return d[1];
+  return "Web";
+}
+
+function listenzeile(z) {
+  return String(z == null ? "" : z).replace(LISTENZEILE_RE, "").trim();
+}
+
+// Textfeld oder Liste zu sauberen Eintraegen, leere Zeilen fliegen raus.
+function eintragszeilen(roh) {
+  const kandidaten = Array.isArray(roh) ? roh.slice() : nl(roh).split("\n");
+  const out = [];
+  for (const z of kandidaten) {
+    const s = listenzeile(String(z).trim());
+    if (s) out.push(s);
+  }
+  return out;
+}
+
+function rohTags(roh) {
+  const kandidaten = Array.isArray(roh)
+    ? roh.slice()
+    : String(roh == null ? "" : roh).split(/[\s,]+/);
+  const out = [];
+  for (let t of kandidaten) {
+    t = String(t).trim().replace(/^#+/, "").toLowerCase();
+    if (t && t !== "rezept" && !out.includes(t) && TAG_ERLAUBT_RE.test(t)) out.push(t);
+  }
+  return out;
+}
+
+// Die Tagzeile einer Rezept-Notiz: erst rezept, dann die Kategorien in
+// fester Reihenfolge, dann alles Freie.
+function rezeptTags(tags, kategorien) {
+  const keys = katKeys(katKeys(kategorien).concat(katKeys(tags)));
+  const out = ["rezept"].concat(keys);
+  for (const t of rohTags(tags)) {
+    if (!out.includes(t) && !katKey(t)) out.push(t);
+  }
+  return out;
+}
+
+// Liest eine Rezept-Notiz. Fehlt ein Abschnitt, bleibt er einfach leer.
+function rezeptParsen(text, fallback) {
+  let titel = "";
+  const tags = [];
+  const meta = {};
+  const zutaten = [];
+  const schritte = [];
+  let wo = "kopf";
+  for (const roh of nl(text).split("\n")) {
+    const z = roh.trim();
+    if (z.startsWith("## ")) {
+      const name = z.slice(3).trim().toLowerCase();
+      if (name.startsWith("zutat")) wo = "zutaten";
+      else if (name.startsWith("zubereitung") || name.startsWith("schritte")
+        || name.startsWith("anleitung") || name.startsWith("zubereiten")) wo = "zubereitung";
+      else wo = "rest";
+      continue;
+    }
+    if (z.startsWith("# ")) {
+      if (!titel) titel = z.slice(2).trim();
+      continue;
+    }
+    if (!z || z.startsWith("<!--") || z.startsWith("---") || z.startsWith("-->")) continue;
+    if (wo === "kopf") {
+      const m = z.match(REZEPT_META_RE);
+      if (m) { meta[m[1].toLowerCase()] = m[2].trim(); continue; }
+      if (TAGZEILE_RE.test(z)) {
+        for (const t of z.matchAll(TAG_IN_ZEILE_RE)) {
+          if (!tags.includes(t[1].toLowerCase())) tags.push(t[1].toLowerCase());
+        }
+        continue;
+      }
+    } else if (wo === "zutaten") {
+      zutaten.push(listenzeile(z));
+    } else if (wo === "zubereitung") {
+      schritte.push(listenzeile(z));
+    }
+  }
+  const kategorien = katKeys(tags);
+  const frei = tags.filter((t) => t !== "rezept" && !katKey(t));
+  return {
+    titel: titel || fallback,
+    kategorien, tags: frei,
+    portionen: meta["portionen"] || "",
+    dauer: meta["dauer"] || "",
+    naehrwerte: meta["nährwerte"] || "",
+    quelle: meta["quelle"] || "",
+    angelegt: meta["angelegt"] || "",
+    zutaten, zubereitung: schritte,
+  };
+}
+
+// Themenname zu einem unter Windows erlaubten Dateinamen.
+function dateiname(name) {
+  let sauber = "";
+  for (const c of String(name == null ? "" : name)) {
+    sauber += VERBOTEN_IM_DATEINAMEN.includes(c) ? " " : c;
+  }
+  sauber = stripPunkte(sauber.replace(/\s{2,}/g, " ").trim());
+  return sauber.slice(0, 110) || "Thema";
+}
+
+// Baut den Markdown-Text einer Rezept-Notiz.
+function rezeptText(titel, zutaten, zubereitung, tags, portionen, dauer,
+  quelle, tag, kategorien, naehrwerte) {
+  tag = tag || heute();
+  const teile = ["# " + titel, ""];
+  teile.push(rezeptTags(tags, kategorien).map((t) => "#" + t).join(" "));
+  teile.push("");
+  const meta = [["Portionen", portionen], ["Dauer", dauer],
+    ["Nährwerte", naehrwerte], ["Quelle", quelle]];
+  for (const mw of meta) {
+    if (String(mw[1] == null ? "" : mw[1]).trim()) {
+      teile.push(mw[0] + ": " + String(mw[1]).trim());
+    }
+  }
+  teile.push("Angelegt: " + iso(tag));
+  teile.push("", "## Zutaten", "");
+  for (const z of eintragszeilen(zutaten)) teile.push("- " + z);
+  const schritte = eintragszeilen(zubereitung);
+  if (schritte.length) {
+    teile.push("", "## Zubereitung", "");
+    for (let i = 0; i < schritte.length; i++) teile.push((i + 1) + ". " + schritte[i]);
+  }
+  return rstripNl(teile.join("\n")) + "\n";
+}
+
+// Prueft die Eingaben wie rezept_anlegen am PC und gibt {datei, text}
+// zurueck. Das Schreiben selbst macht die Oberflaeche per Transaktion.
+function rezeptNeu(felder, tag) {
+  const titel = String(felder.titel || "").split(/\s+/).filter(Boolean).join(" ");
+  if (!titel) throw new Error("Kein Titel");
+  if (titel.length > 120) throw new Error("Titel zu lang");
+  if (!eintragszeilen(felder.zutaten).length) throw new Error("Ohne Zutaten ist es kein Rezept");
+  const quelle = String(felder.quelle || "").trim();
+  if (quelle && !URL_RE.test(quelle)) throw new Error("Die Quelle ist keine Adresse");
+  return {
+    titel,
+    datei: dateiname(titel) + ".md",
+    text: rezeptText(titel, felder.zutaten, felder.zubereitung, felder.tags,
+      felder.portionen, felder.dauer, quelle, tag || heute(),
+      felder.kategorien, felder.naehrwerte),
+  };
+}
+
+// Schreibt eine bestehende Notiz komplett neu. Das Anlegedatum bleibt
+// stehen. Gibt {titel, datei, text, altTitel} zurueck.
+function rezeptBearbeiten(altText, altDatei, felder) {
+  const alt = rezeptParsen(altText, altDatei.replace(/\.md$/, ""));
+  const titel = String(felder.titel || "").split(/\s+/).filter(Boolean).join(" ") || alt.titel;
+  if (titel.length > 120) throw new Error("Titel zu lang");
+  if (!eintragszeilen(felder.zutaten).length) throw new Error("Ohne Zutaten ist es kein Rezept");
+  const quelle = String(felder.quelle || "").trim();
+  if (quelle && !URL_RE.test(quelle)) throw new Error("Die Quelle ist keine Adresse");
+  const tag = parseDateIso(alt.angelegt) || heute();
+  return {
+    titel, altTitel: alt.titel,
+    datei: dateiname(titel) + ".md",
+    text: rezeptText(titel, felder.zutaten, felder.zubereitung, felder.tags,
+      felder.portionen, felder.dauer, quelle, tag, felder.kategorien,
+      felder.naehrwerte),
+  };
+}
+
+// Nackte Zahl bekommt das Wort dazu, alles andere bleibt wie es ist.
+function portionenLabel(wert) {
+  const w = String(wert == null ? "" : wert).trim();
+  if (!/^\d+$/.test(w)) return w;
+  return w === "1" ? "1 Portion" : w + " Portionen";
+}
+
+// ------------------------------------------------------- Kochtermine
+
+// Die eingeplanten Rezepte, nach Datum. Ohne alle nur ab heute.
+function parseKochplan(kalText, alle) {
+  const grenze = alle ? null : heute();
+  const out = [];
+  for (const t of parseKalender(kalText)) {
+    if (!t.titel.startsWith(KOCH_PREFIX)) continue;
+    if (grenze && t.datum < grenze) continue;
+    out.push({ datum: t.datum, zeit: t.zeit, titel: t.titel.slice(KOCH_PREFIX.length).trim() });
+  }
+  out.sort((a, b) => (a.datum - b.datum)
+    || ((a.zeit || "99:99") < (b.zeit || "99:99") ? -1 : (a.zeit || "99:99") > (b.zeit || "99:99") ? 1 : 0));
+  return out;
+}
+
+function rezeptEinplanen(kalText, titel, datum, zeit) {
+  titel = String(titel || "").split(/\s+/).filter(Boolean).join(" ");
+  return kalenderAnlegen(kalText, datum, KOCH_PREFIX + titel, zeit || "", "");
+}
+
+function rezeptAusplanen(kalText, titel, datum) {
+  titel = String(titel || "").split(/\s+/).filter(Boolean).join(" ");
+  return terminLoeschen(kalText, datum, KOCH_PREFIX + titel);
+}
+
+// Nach einer Titelaenderung zeigen die Termine sonst ins Leere.
+function kochtermineUmbenennen(kalText, alt, neu) {
+  let text = kalText;
+  for (const t of parseKalender(kalText)) {
+    if (t.titel !== KOCH_PREFIX + alt) continue;
+    text = terminLoeschen(text, iso(t.datum), t.titel).text;
+    text = kalenderAnlegen(text, iso(t.datum), KOCH_PREFIX + neu, t.zeit, t.notiz).text;
+  }
+  return text;
+}
+
+// ---------------------------------------------------- Warteschlange
+
+// Der Teil hinter der Adresse zu {kategorien, notiz}.
+function queueRest(rest) {
+  const teile = String(rest == null ? "" : rest).split("|").map((t) => t.trim());
+  if (teile.length >= 2) {
+    return { kategorien: katKeys(teile[0]),
+      notiz: teile.slice(1).filter(Boolean).join(" ").trim() };
+  }
+  const einziges = teile.length ? teile[0] : "";
+  if (einziges && TAGZEILE_RE.test(einziges)) {
+    return { kategorien: katKeys(einziges), notiz: "" };
+  }
+  return { kategorien: [], notiz: einziges };
+}
+
+function parseRezeptQueue(text) {
+  const out = { offen: [], fertig: [] };
+  let wo = null;
+  for (const roh of nl(text).split("\n")) {
+    const z = roh.trim();
+    if (z.startsWith("## ")) {
+      const name = z.slice(3).trim().toLowerCase();
+      wo = name.startsWith("offen") ? "offen" : name.startsWith("fertig") ? "fertig" : null;
+      continue;
+    }
+    if (wo === null || !z) continue;
+    const m = z.match(QUEUE_RE);
+    if (m) {
+      const r = queueRest(m[3]);
+      out[wo].push({ wann: m[1].replace("T", " "), url: m[2],
+        kategorien: r.kategorien, notiz: r.notiz, dienst: dienstName(m[2]) });
+    }
+  }
+  return out;
+}
+
+function queueZeilen(text) {
+  const zeilen = zeilenAus(text);
+  return zeilen.filter((z) => z.trim()).length ? zeilen : QUEUE_GRUNDGERUEST.slice();
+}
+
+// {index, wo} der Zeile mit dieser Adresse, sonst {index: null, wo: null}.
+function queueEintragSuchen(zeilen, url) {
+  let wo = null;
+  for (let i = 0; i < zeilen.length; i++) {
+    const z = zeilen[i].trim();
+    if (z.startsWith("## ")) {
+      const name = z.slice(3).trim().toLowerCase();
+      wo = name.startsWith("offen") ? "offen" : name.startsWith("fertig") ? "fertig" : null;
+      continue;
+    }
+    const m = z.match(QUEUE_RE);
+    if (m && m[2] === url) return { index: i, wo };
+  }
+  return { index: null, wo: null };
+}
+
+function queueZeile(stempel, url, kategorien, notiz) {
+  const teile = ["- " + stempel + " | " + url];
+  const keys = katKeys(kategorien);
+  if (keys.length || notiz) teile.push(keys.map((k) => "#" + k).join(" "));
+  if (notiz) teile.push(notiz);
+  return teile.join(" | ");
+}
+
+// Haengt eine Zeile unten an die Sektion, ohne die Leerzeile davor
+// kaputt zu machen. Wie _zeile_ans_ende am PC.
+function zeileAnsEnde(zeilen, sektion, neu) {
+  const i = sektionSichern(zeilen, sektion);
+  const ende = sektionEnde(zeilen, i);
+  let einfuegen = ende;
+  while (einfuegen > i + 1 && !zeilen[einfuegen - 1].trim()) einfuegen -= 1;
+  if (einfuegen === i + 1) { zeilen.splice(einfuegen, 0, ""); einfuegen += 1; }
+  zeilen.splice(einfuegen, 0, neu);
+  return zeilen;
+}
+
+// Neuer Link in die Warteschlange, unter ## Offen. stempel im Format
+// JJJJ-MM-TT HH:MM, den liefert die Oberflaeche aus der lokalen Uhr.
+function rezeptQueueAnlegen(text, url, notiz, stempel, kategorien) {
+  url = String(url || "").trim();
+  if (!URL_RE.test(url)) throw new Error("Das ist keine Adresse");
+  if (url.length > 500) throw new Error("Adresse zu lang");
+  notiz = String(notiz == null ? "" : notiz).split(/\s+/).filter(Boolean).join(" ")
+    .replace(/\|/g, "/").slice(0, 900);
+  const zeilen = queueZeilen(text);
+  const fund = queueEintragSuchen(zeilen, url);
+  if (fund.wo === "offen") throw new Error("Steht schon in der Warteschlange");
+  const zeile = queueZeile(stempel, url, kategorien, notiz);
+  zeileAnsEnde(zeilen, "Offen", zeile);
+  return { text: joinZeilen(zeilen), zeile };
+}
+
+// Nimmt einen Link wieder raus, ohne dass ein Rezept daraus wurde.
+function rezeptQueueWeg(text, url) {
+  url = String(url || "").trim();
+  const zeilen = queueZeilen(text);
+  const fund = queueEintragSuchen(zeilen, url);
+  if (fund.index === null) throw new Error("Nicht in der Warteschlange: " + url);
+  const weg = zeilen[fund.index].trim();
+  zeilen.splice(fund.index, 1);
+  return { text: joinZeilen(zeilen), weg };
+}
+
 // ===CORE-END===
 
 if (typeof module !== "undefined") {
@@ -2107,6 +2562,13 @@ if (typeof module !== "undefined") {
     medienHinzufuegen, medienAufstarten, medienFortschritt, medienNote,
     medienFertig, medienNotizErgaenzen,
     spielFortschrittTeile, spielFortschrittBauen,
+    KATEGORIEN, KAT_KEYS, KAT_LABEL, KAT_ALIAS, KOCH_PREFIX,
+    QUEUE_GRUNDGERUEST, katKey, katKeys, dienstName, listenzeile,
+    eintragszeilen, rohTags, rezeptTags, rezeptParsen, dateiname,
+    rezeptText, rezeptNeu, rezeptBearbeiten, portionenLabel,
+    parseKochplan, rezeptEinplanen, rezeptAusplanen, kochtermineUmbenennen,
+    queueRest, parseRezeptQueue, queueZeilen, queueEintragSuchen,
+    queueZeile, zeileAnsEnde, rezeptQueueAnlegen, rezeptQueueWeg,
   };
 }
 
@@ -2161,7 +2623,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 10;
+const VERSION = 11;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -2174,12 +2636,14 @@ function cfgSpeichern() { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
 let ablage = new Map();
 let todoNamen = [];       // Dateinamen Dashboard/Todos*.md in fester Reihenfolge
 let tagebuchNamen = [];   // JJJJ.MM.TT.md, aufsteigend
+let rezNamen = [];        // Dateinamen in Rezepte/, ohne _Archiv
 let stand = null;         // Zeitpunkt des letzten erfolgreichen Ladens
 
 function cacheSpeichern() {
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify({
-      ablage: Array.from(ablage.entries()), todoNamen, tagebuchNamen, stand,
+      ablage: Array.from(ablage.entries()), todoNamen, tagebuchNamen,
+      rezNamen, stand,
     }));
   } catch (e) { /* Speicher voll, egal */ }
 }
@@ -2190,6 +2654,7 @@ function cacheLaden() {
     ablage = new Map(c.ablage);
     todoNamen = c.todoNamen || [];
     tagebuchNamen = c.tagebuchNamen || [];
+    rezNamen = c.rezNamen || [];
     stand = c.stand || null;
     return ablage.size > 0;
   } catch (e) { return false; }
@@ -2267,6 +2732,18 @@ async function putDatei(pfad, text, nachricht) {
   ablage.set(pfad, { text, sha: d.content.sha });
 }
 
+// Loescht eine Datei im Repo. Braucht den sha, wie das Schreiben auch.
+async function loeschDatei(pfad, nachricht) {
+  const alt = ablage.get(pfad);
+  const sha = alt && alt.sha ? alt.sha : (await ladeDatei(pfad)).sha;
+  if (!sha) return;
+  await api("/contents/" + apiPfad(pfad), {
+    method: "DELETE",
+    body: JSON.stringify({ message: nachricht, sha, branch: cfg.branch }),
+  });
+  ablage.delete(pfad);
+}
+
 // Fuehrt rechne(texte) aus und schreibt alle geaenderten Dateien.
 // Bei einem sha-Konflikt wird frisch geladen und neu gerechnet.
 async function transaktion(pfade, rechne, nachricht) {
@@ -2324,10 +2801,17 @@ async function aktualisieren(leise) {
     const feste = ["Dashboard/Kalender.md", "Dashboard/Habits.md",
       "Dashboard/Schichten.md", "Dashboard/Gesundheit.md",
       "Dashboard/Sozial.md", "Dashboard/Training.md",
-      "Dashboard/Schlagworte.md"];
+      "Dashboard/Schlagworte.md", REZEPT_QUEUE_PFAD];
     for (const k of MEDIEN_KAT) feste.push("Medien/" + k[2], "Medien/" + k[3]);
     await Promise.all(
       namen.map((n) => ladeDatei("Dashboard/" + n)).concat(feste.map(ladeDatei)));
+
+    // Rezepte sind einzelne Notizen. Der Unterordner _Archiv taucht als
+    // type dir auf und faellt damit von selbst raus, wie am PC.
+    const rz = await ladeOrdner("Rezepte").catch(() => []);
+    rezNamen = rz.filter((e) => e.type === "file" && /\.md$/i.test(e.name))
+      .map((e) => e.name).sort();
+    await Promise.all(rezNamen.map((n) => ladeDatei("Rezepte/" + n)));
 
     const tb = await ladeOrdner("Tagebuch").catch(() => []);
     tagebuchNamen = tb.filter((e) => e.type === "file" && /^\d{4}\.\d{2}\.\d{2}\.md$/.test(e.name))
@@ -2398,6 +2882,7 @@ function renderAlles() {
   renderTraining();
   renderMedien();
   renderSozial();
+  renderRezepte();
 }
 
 // ------------------------------------------------------------- Heute
@@ -2590,7 +3075,7 @@ function renderKalender() {
   b.push("<div style=\"margin-top:10px\"><button class=\"knopf zweit\" data-aktion=\"termin-neu\">+ Termin am " + kurzDatum(kalTag) + "</button></div>");
   b.push("</div>");
 
-  $("#blatt-kalender").innerHTML = b.join("");
+  $("#teil-kalender").innerHTML = b.join("");
 }
 
 // ----------------------------------------------------------- Tagebuch
@@ -2609,6 +3094,7 @@ function renderTagebuch() {
   const inhalt = ablage.has(pfad) ? text(pfad) : null;
 
   const b = [];
+  b.push("<div class=\"sektionstitel\" style=\"margin:20px 0 10px\">Tagebuch</div>");
   b.push("<div class=\"tbnav\"><button data-aktion=\"tb-tag\" data-schritt=\"-1\">‹</button>" +
     "<span class=\"datum\">" + langDatum(tbTag) + "</span>" +
     "<button data-aktion=\"tb-tag\" data-schritt=\"1\"" + (gleich(tbTag, heute()) ? " disabled" : "") + ">›</button></div>");
@@ -2629,7 +3115,7 @@ function renderTagebuch() {
       "Jeder Stand landet als Commit in git, nichts geht verloren.</div></div>");
   }
 
-  $("#blatt-tagebuch").innerHTML = b.join("");
+  $("#teil-tagebuch").innerHTML = b.join("");
   tbRenderTag = tbTag;
   tbDirty = false;
   const ta = $("#tbedit");
@@ -2867,6 +3353,7 @@ function trainingTagSheet() {
 // ------------------------------------------------------------- Medien
 
 let medVorschlag = null;   // aktueller Wuerfel-Vorschlag
+let medWuerfelKat = "";    // Kategorie, aus der gewuerfelt wird
 
 function medienWlTexte() {
   const o = {};
@@ -2908,9 +3395,42 @@ function renderMedien() {
   const durch = parseGeschautAlle(medienGlTexte());
   const b = [];
 
+  // Neuer Eintrag steht ganz oben, das ist der haeufigste Griff.
+  b.push("<div class=\"karte\"><h3>Neu hinzufügen</h3>" +
+    "<label class=\"feld\">Titel</label><input type=\"text\" id=\"med-neutitel\">" +
+    "<label class=\"feld\">Kategorie</label><select id=\"med-neukat\">" +
+    MEDIEN_KAT.map((k) => "<option value=\"" + k[0] + "\">" + k[1] + "</option>").join("") +
+    "</select><button class=\"knopf\" data-aktion=\"medien-add\" style=\"margin-top:8px\">Hinzufügen</button></div>");
+
+  // Was als naechstes, auf Wunsch nur aus einer Kategorie, genau wie am PC.
+  const topf = medWuerfelKat ? m.backlog.filter((x) => x.kat === medWuerfelKat) : m.backlog;
+  b.push("<div class=\"karte\"><h3>Was als nächstes <span class=\"zusatz\">" +
+    topf.length + " im Topf</span></h3>" +
+    "<div class=\"hilfetext\">Gegen das YouTube-Loch. Zieht zufällig aus deinen " +
+    "offenen Titeln, auf Wunsch nur aus einer Kategorie.</div>");
+  b.push("<label class=\"feld\" style=\"margin-top:8px\">Kategorie</label>" +
+    "<select id=\"med-wkat\"><option value=\"\"" + (medWuerfelKat ? "" : " selected") +
+    ">Alles (" + m.backlog.length + ")</option>" +
+    MEDIEN_KAT.map((k) => {
+      const n = m.backlog.filter((x) => x.kat === k[0]).length;
+      return "<option value=\"" + k[0] + "\"" + (medWuerfelKat === k[0] ? " selected" : "") +
+        (n ? "" : " disabled") + ">" + k[4] + " (" + n + ")</option>";
+    }).join("") + "</select>");
+  if (medVorschlag) {
+    b.push("<div style=\"margin:2px 0\"><strong>" + esc(medVorschlag.titel) + "</strong> " +
+      "<span class=\"zusatz\">" + esc(medVorschlag.typ) + "</span>" +
+      (medVorschlag.zusatz ? "<div class=\"hilfetext\">" + esc(medVorschlag.zusatz) + "</div>" : "") + "</div>");
+    b.push("<div class=\"zeile2\" style=\"margin-top:8px\">" +
+      "<button class=\"knopf zweit\" data-aktion=\"medien-wuerfeln\">Nochmal</button>" +
+      "<button class=\"knopf\" data-aktion=\"medien-start\" data-kat=\"" + esc(medVorschlag.kat) + "\" data-titel=\"" + esc(medVorschlag.titel) + "\">Starten</button></div>");
+  } else {
+    b.push("<button class=\"knopf\" data-aktion=\"medien-wuerfeln\">Würfeln</button>");
+  }
+  b.push("</div>");
+
   b.push("<div class=\"karte\"><h3>Gerade dabei</h3>");
   if (!m.dabei.length) {
-    b.push("<div class=\"hilfetext\">Nichts läuft gerade. Würfel unten einen Vorschlag oder starte einen offenen Titel.</div>");
+    b.push("<div class=\"hilfetext\">Nichts läuft gerade. Würfel oben einen Vorschlag oder starte einen offenen Titel.</div>");
   }
   b.push("</div>");
   for (const d of m.dabei) {
@@ -2933,26 +3453,6 @@ function renderMedien() {
     b.push(medienNotizDetails(d.kat, d.titel));
     b.push("</div>");
   }
-
-  b.push("<div class=\"karte\"><h3>Neu hinzufügen</h3>" +
-    "<label class=\"feld\">Titel</label><input type=\"text\" id=\"med-neutitel\">" +
-    "<label class=\"feld\">Kategorie</label><select id=\"med-neukat\">" +
-    MEDIEN_KAT.map((k) => "<option value=\"" + k[0] + "\">" + k[1] + "</option>").join("") +
-    "</select><button class=\"knopf\" data-aktion=\"medien-add\" style=\"margin-top:8px\">Hinzufügen</button></div>");
-
-  b.push("<div class=\"karte\"><h3>Was als nächstes</h3>" +
-    "<div class=\"hilfetext\">Zieht zufällig aus " + m.backlog.length + " offenen Titeln.</div>");
-  if (medVorschlag) {
-    b.push("<div style=\"margin:8px 0 2px\"><strong>" + esc(medVorschlag.titel) + "</strong> " +
-      "<span class=\"zusatz\">" + esc(medVorschlag.typ) + "</span>" +
-      (medVorschlag.zusatz ? "<div class=\"hilfetext\">" + esc(medVorschlag.zusatz) + "</div>" : "") + "</div>");
-    b.push("<div class=\"zeile2\" style=\"margin-top:8px\">" +
-      "<button class=\"knopf zweit\" data-aktion=\"medien-wuerfeln\">Nochmal</button>" +
-      "<button class=\"knopf\" data-aktion=\"medien-start\" data-kat=\"" + esc(medVorschlag.kat) + "\" data-titel=\"" + esc(medVorschlag.titel) + "\">Starten</button></div>");
-  } else {
-    b.push("<button class=\"knopf\" data-aktion=\"medien-wuerfeln\" style=\"margin-top:8px\">Würfeln</button>");
-  }
-  b.push("</div>");
 
   const nachKat = new Map();
   for (const x of m.backlog) {
@@ -3004,6 +3504,260 @@ function medienTitelSheet(kat, titel, zusatz) {
     (zusatz ? "<div class=\"hilfetext\" style=\"margin-bottom:10px\">" + esc(zusatz) + "</div>" : "") +
     "<button class=\"aktion\" data-aktion=\"medien-start\" " + idx + ">Starten<small>wandert zu Gerade dabei</small></button>" +
     "<button class=\"aktion\" data-aktion=\"medien-fertig-frage\" " + idx + ">Schon fertig<small>direkt bewerten</small></button>" +
+    "<button class=\"aktion\" data-aktion=\"sheet-zu\">Abbrechen</button>");
+}
+
+// ------------------------------------------------------------- Rezepte
+
+let rezSuche = "";
+let rezFilter = "";
+
+function alleRezepte() {
+  const out = [];
+  for (const n of rezNamen) {
+    const pfad = "Rezepte/" + n;
+    if (!ablage.has(pfad)) continue;
+    const r = rezeptParsen(text(pfad), n.slice(0, -3));
+    r.datei = n;
+    out.push(r);
+  }
+  out.sort((a, b) => {
+    const x = a.titel.toLowerCase(), y = b.titel.toLowerCase();
+    return x < y ? -1 : x > y ? 1 : 0;
+  });
+  return out;
+}
+
+// Zeitstempel der Warteschlange aus der lokalen Uhr, wie datetime.now()
+// am PC. Format JJJJ-MM-TT HH:MM.
+function jetztStempel() {
+  const d = new Date();
+  const p = (x) => String(x).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate())
+    + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+
+function katChips(aktiv, id) {
+  const an = new Set(aktiv || []);
+  return "<div class=\"chips katchips\" id=\"" + id + "\">" +
+    KATEGORIEN.map((kl) => "<button type=\"button\" class=\"chip katchip" +
+      (an.has(kl[0]) ? " an" : "") + "\" data-aktion=\"katchip\" data-kat=\"" +
+      esc(kl[0]) + "\">" + esc(kl[1]) + "</button>").join("") + "</div>";
+}
+
+function katChipsLesen(id) {
+  return Array.from(document.querySelectorAll("#" + id + " .katchip.an"))
+    .map((el) => el.dataset.kat);
+}
+
+function renderRezepte() {
+  const rezepte = alleRezepte();
+  const queue = parseRezeptQueue(text(REZEPT_QUEUE_PFAD));
+  const kochplan = parseKochplan(text("Dashboard/Kalender.md"));
+  const geplant = {};
+  for (const k of kochplan) {
+    (geplant[k.titel] = geplant[k.titel] || []).push(k.datum);
+  }
+  const b = [];
+
+  // Kochplan, steht als ganz normaler Termin im Kalender.
+  if (kochplan.length) {
+    b.push("<div class=\"karte\"><h3>Kochplan <span class=\"zusatz\">" +
+      kochplan.length + " geplant</span></h3>");
+    for (const k of kochplan.slice(0, 12)) {
+      const tage = tageDiff(k.datum, heute());
+      const wann = tage === 0 ? "heute" : tage === 1 ? "morgen" : "in " + tage + " Tagen";
+      b.push("<div class=\"kochzeile\"><span class=\"wann" + (tage === 0 ? " jetzt" : "") + "\">" +
+        esc(kurzDatum(k.datum)) + "</span>" +
+        "<span class=\"titel\">" + esc(k.titel) + "<span class=\"zu\">" + esc(wann) + "</span></span>" +
+        "<button class=\"chip\" data-aktion=\"rez-absagen\" data-titel=\"" + esc(k.titel) +
+        "\" data-datum=\"" + iso(k.datum) + "\">Absagen</button></div>");
+    }
+    b.push("</div>");
+  }
+
+  // Suchen und filtern. Beides laeuft ohne Neuaufbau, damit die Tastatur
+  // beim Tippen nicht zuklappt.
+  b.push("<div class=\"karte\"><h3>Rezepte <span class=\"zusatz\" id=\"rezzahl\">" +
+    rezepte.length + "</span></h3>");
+  b.push("<input type=\"text\" id=\"rezsuche\" placeholder=\"Suchen in Titel, Tags und Zutaten\" " +
+    "autocomplete=\"off\" value=\"" + esc(rezSuche) + "\">");
+  const zaehler = {};
+  for (const r of rezepte) for (const k of r.kategorien) zaehler[k] = (zaehler[k] || 0) + 1;
+  b.push("<div class=\"chips\" id=\"rezfilter\">");
+  b.push("<button class=\"chip" + (rezFilter ? "" : " an") + "\" data-aktion=\"rez-filter\" data-filter=\"\">Alle" +
+    "<span class=\"strk\">" + rezepte.length + "</span></button>");
+  for (const k of KAT_KEYS) {
+    if (!zaehler[k]) continue;
+    b.push("<button class=\"chip" + (rezFilter === k ? " an" : "") + "\" data-aktion=\"rez-filter\" data-filter=\"" +
+      esc(k) + "\">" + esc(KAT_LABEL[k]) + "<span class=\"strk\">" + zaehler[k] + "</span></button>");
+  }
+  b.push("</div>");
+  b.push("<button class=\"knopf\" data-aktion=\"rez-neu\" style=\"margin-top:10px\">+ Neues Rezept</button>");
+  b.push("</div>");
+
+  if (!rezepte.length) {
+    b.push("<div class=\"karte\"><div class=\"leer\">Noch keine Rezepte geladen. " +
+      "Einmal oben aktualisieren, oder leg unten eins an.</div></div>");
+  }
+
+  for (const r of rezepte) {
+    const such = [r.titel].concat(r.tags, r.zutaten,
+      r.kategorien.map((k) => KAT_LABEL[k])).join(" ").toLowerCase();
+    b.push("<article class=\"karte rezkarte\" data-kat=\"" + esc(r.kategorien.join(" ")) +
+      "\" data-suche=\"" + esc(such) + "\">");
+    b.push("<div class=\"reztitel\">" + esc(r.titel) + "</div>");
+    const pills = [];
+    for (const d of (geplant[r.titel] || []).slice(0, 2)) {
+      pills.push("<span class=\"pill ok\">geplant " + esc(kurzDatum(d)) + "</span>");
+    }
+    for (const k of r.kategorien) pills.push("<span class=\"pill kat\">" + esc(KAT_LABEL[k]) + "</span>");
+    if (r.portionen) pills.push("<span class=\"pill\">" + esc(portionenLabel(r.portionen)) + "</span>");
+    if (r.dauer) pills.push("<span class=\"pill\">" + esc(r.dauer) + "</span>");
+    if (r.naehrwerte) pills.push("<span class=\"pill naehr\">" + esc(r.naehrwerte) + "</span>");
+    for (const t of r.tags) pills.push("<span class=\"pill\">#" + esc(t) + "</span>");
+    if (pills.length) b.push("<div class=\"pills\">" + pills.join("") + "</div>");
+
+    b.push("<details class=\"rezdet\"><summary><span class=\"pfeil\">▾</span> Zutaten" +
+      "<span class=\"anz\">" + (r.zutaten.length ? r.zutaten.length + " Stück" : "keine") + "</span></summary>");
+    b.push(r.zutaten.length
+      ? "<ul class=\"rezliste\">" + r.zutaten.map((z) => "<li>" + esc(z) + "</li>").join("") + "</ul>"
+      : "<div class=\"leer\">Keine Zutaten in der Notiz.</div>");
+    b.push("</details>");
+
+    if (r.zubereitung.length) {
+      b.push("<details class=\"rezdet\"><summary><span class=\"pfeil\">▾</span> Zubereitung" +
+        "<span class=\"anz\">" + r.zubereitung.length + " Schritte</span></summary>" +
+        "<ol class=\"rezliste\">" + r.zubereitung.map((s) => "<li>" + esc(s) + "</li>").join("") +
+        "</ol></details>");
+    }
+
+    const idx = "data-datei=\"" + esc(r.datei) + "\" data-titel=\"" + esc(r.titel) + "\"";
+    b.push("<div class=\"rezfuss\">" +
+      "<button class=\"chip\" data-aktion=\"rez-plan\" " + idx + ">Einplanen</button>" +
+      "<button class=\"chip\" data-aktion=\"rez-bearbeiten\" " + idx + ">Bearbeiten</button>" +
+      "<button class=\"chip\" data-aktion=\"rez-archiv-frage\" " + idx + ">Archivieren</button>" +
+      (r.quelle ? "<a class=\"chip\" href=\"" + esc(r.quelle) + "\" target=\"_blank\" rel=\"noopener\">" +
+        esc(dienstName(r.quelle)) + "</a>" : "") + "</div>");
+    b.push("</article>");
+  }
+
+  // Video-Warteschlange
+  b.push("<div class=\"karte\"><h3>Rezept aus einem Video</h3>" +
+    "<div class=\"hilfetext\">Link von TikTok, Instagram oder YouTube rein, " +
+    "Claude macht daraus ein fertiges Rezept.</div>" +
+    "<button class=\"knopf zweit\" data-aktion=\"rez-video\" style=\"margin-top:10px\">+ Video in die Warteschlange</button>");
+  if (queue.offen.length) {
+    b.push("<div class=\"sektionstitel\" style=\"margin-top:12px\">Wartet auf Claude</div>");
+    for (const q of queue.offen) {
+      b.push("<div class=\"wartezeile\"><span class=\"pill\">" + esc(q.dienst) + "</span>" +
+        "<span class=\"titel\"><a href=\"" + esc(q.url) + "\" target=\"_blank\" rel=\"noopener\">" +
+        esc(q.url.slice(0, 52) + (q.url.length > 52 ? "..." : "")) + "</a>" +
+        q.kategorien.map((k) => "<span class=\"pill kat\">" + esc(KAT_LABEL[k]) + "</span>").join("") +
+        (q.notiz ? "<span class=\"pill ok\">Text dabei</span>" : "") +
+        "<span class=\"zu\">" + esc(q.wann.slice(5)) + "</span></span>" +
+        "<button class=\"chip\" data-aktion=\"rez-queue-weg\" data-url=\"" + esc(q.url) + "\">Weg</button></div>");
+    }
+  } else if (queue.fertig.length) {
+    b.push("<div class=\"hilfetext\" style=\"margin-top:10px\">Warteschlange leer, " +
+      queue.fertig.length + " Video" + (queue.fertig.length === 1 ? "" : "s") + " schon verarbeitet.</div>");
+  }
+  b.push("</div>");
+
+  $("#blatt-rezepte").innerHTML = b.join("");
+  const suche = $("#rezsuche");
+  if (suche) {
+    suche.addEventListener("input", () => { rezSuche = suche.value; rezFiltern(); });
+  }
+  rezFiltern();
+}
+
+// Blendet Karten aus statt neu zu rendern, sonst verliert das Suchfeld
+// bei jedem Buchstaben den Fokus.
+function rezFiltern() {
+  const q = rezSuche.trim().toLowerCase();
+  let sichtbar = 0;
+  document.querySelectorAll("#blatt-rezepte .rezkarte").forEach((el) => {
+    const kats = " " + el.dataset.kat + " ";
+    const passt = (!rezFilter || kats.includes(" " + rezFilter + " "))
+      && (!q || el.dataset.suche.includes(q));
+    el.style.display = passt ? "" : "none";
+    if (passt) sichtbar += 1;
+  });
+  const zahl = $("#rezzahl");
+  if (zahl) zahl.textContent = sichtbar + (rezSuche.trim() || rezFilter ? " von " + document.querySelectorAll("#blatt-rezepte .rezkarte").length : "");
+}
+
+// Ein Formular fuer Anlegen und Bearbeiten, damit beide Wege dieselben
+// Felder und dieselbe Reihenfolge haben.
+function rezeptSheet(datei) {
+  const r = datei
+    ? rezeptParsen(text("Rezepte/" + datei), datei.slice(0, -3))
+    : { titel: "", portionen: "", dauer: "", naehrwerte: "", quelle: "",
+      tags: [], kategorien: [], zutaten: [], zubereitung: [] };
+  let b = "<div class=\"griff\"></div><h2>" + (datei ? "Rezept bearbeiten" : "Neues Rezept") + "</h2>";
+  b += "<label class=\"feld\">Titel</label><input type=\"text\" id=\"rz-titel\" value=\"" + esc(r.titel) + "\">";
+  b += "<div class=\"zeile2\"><div><label class=\"feld\">Portionen</label>" +
+    "<input type=\"text\" id=\"rz-port\" value=\"" + esc(r.portionen) + "\"></div>" +
+    "<div><label class=\"feld\">Dauer</label>" +
+    "<input type=\"text\" id=\"rz-dauer\" value=\"" + esc(r.dauer) + "\"></div></div>";
+  b += "<label class=\"feld\">Kategorien</label>" + katChips(r.kategorien, "rz-kat");
+  b += "<label class=\"feld\" style=\"margin-top:10px\">Zutaten, eine pro Zeile</label>" +
+    "<textarea id=\"rz-zutaten\" placeholder=\"200 g Spaghetti&#10;100 g Guanciale\">" +
+    esc(r.zutaten.join("\n")) + "</textarea>";
+  b += "<label class=\"feld\">Zubereitung, optional</label>" +
+    "<textarea id=\"rz-schritte\" placeholder=\"Wasser aufsetzen und salzen.\">" +
+    esc(r.zubereitung.join("\n")) + "</textarea>";
+  b += "<label class=\"feld\">Weitere Tags, optional</label>" +
+    "<input type=\"text\" id=\"rz-tags\" value=\"" + esc(r.tags.join(" ")) + "\" placeholder=\"pasta schnell\">";
+  b += "<label class=\"feld\">Nährwerte, optional</label>" +
+    "<input type=\"text\" id=\"rz-naehr\" value=\"" + esc(r.naehrwerte) + "\">";
+  b += "<label class=\"feld\">Quelle, optional</label>" +
+    "<input type=\"text\" id=\"rz-quelle\" value=\"" + esc(r.quelle) + "\" placeholder=\"https://...\">";
+  b += "<button class=\"knopf\" data-aktion=\"rez-speichern\" data-datei=\"" + esc(datei || "") + "\">" +
+    (datei ? "Speichern" : "Rezept anlegen") + "</button>";
+  sheetOeffnen(b);
+}
+
+function rezFelderLesen() {
+  return {
+    titel: $("#rz-titel").value,
+    portionen: $("#rz-port").value.trim(),
+    dauer: $("#rz-dauer").value.trim(),
+    naehrwerte: $("#rz-naehr").value.trim(),
+    quelle: $("#rz-quelle").value.trim(),
+    tags: $("#rz-tags").value,
+    kategorien: katChipsLesen("rz-kat"),
+    zutaten: $("#rz-zutaten").value,
+    zubereitung: $("#rz-schritte").value,
+  };
+}
+
+function rezeptPlanSheet(titel) {
+  sheetOeffnen("<div class=\"griff\"></div><h2>" + esc(titel) + "</h2>" +
+    "<div class=\"hilfetext\" style=\"margin-bottom:10px\">Landet als Termin " +
+    "<code>Kochen: " + esc(titel) + "</code> im Kalender.</div>" +
+    "<label class=\"feld\">Wann willst du das kochen</label>" +
+    "<input type=\"date\" id=\"rp-datum\" value=\"" + iso(heute()) + "\">" +
+    "<button class=\"knopf\" data-aktion=\"rez-plan-speichern\" data-titel=\"" + esc(titel) + "\">In den Kalender</button>");
+}
+
+function rezeptVideoSheet() {
+  sheetOeffnen("<div class=\"griff\"></div><h2>Video in die Warteschlange</h2>" +
+    "<label class=\"feld\">Adresse</label>" +
+    "<input type=\"text\" id=\"rv-url\" placeholder=\"https://www.tiktok.com/...\" autocomplete=\"off\">" +
+    "<label class=\"feld\">Kategorien, optional</label>" + katChips([], "rv-kat") +
+    "<label class=\"feld\" style=\"margin-top:10px\">Beschreibung aus dem Video, optional</label>" +
+    "<textarea id=\"rv-text\" placeholder=\"Zutatenliste oder Beschreibungstext\"></textarea>" +
+    "<button class=\"knopf\" data-aktion=\"rez-queue-anlegen\">In die Warteschlange</button>");
+}
+
+function rezeptArchivSheet(datei, titel) {
+  sheetOeffnen("<div class=\"griff\"></div><h2>" + esc(titel) + "</h2>" +
+    "<div class=\"hilfetext\" style=\"margin-bottom:10px\">Wandert nach " +
+    "<code>Rezepte/_Archiv</code>. Gelöscht wird nichts.</div>" +
+    "<button class=\"aktion rot\" data-aktion=\"rez-archivieren\" data-datei=\"" + esc(datei) +
+    "\" data-titel=\"" + esc(titel) + "\">Archivieren</button>" +
     "<button class=\"aktion\" data-aktion=\"sheet-zu\">Abbrechen</button>");
 }
 
@@ -3119,7 +3873,8 @@ const AKTIONEN = {
   },
   "cache-leeren": () => {
     localStorage.removeItem(CACHE_KEY);
-    ablage = new Map(); todoNamen = []; tagebuchNamen = []; stand = null;
+    ablage = new Map(); todoNamen = []; tagebuchNamen = []; rezNamen = [];
+    stand = null;
     sheetZu(); renderAlles(); toast("Zwischenspeicher geleert");
   },
 
@@ -3483,12 +4238,121 @@ const AKTIONEN = {
     }, "Auf der Watchliste");
   },
   "medien-wuerfeln": () => {
+    const wahl = $("#med-wkat");
+    medWuerfelKat = wahl ? wahl.value : medWuerfelKat;
     const m = parseMedienAlle(medienWlTexte());
-    if (!m.backlog.length) { toast("Kein offener Titel auf den Watchlisten", true); return; }
-    medVorschlag = m.backlog[Math.floor(Math.random() * m.backlog.length)];
+    const topf = medWuerfelKat ? m.backlog.filter((x) => x.kat === medWuerfelKat) : m.backlog;
+    if (!topf.length) { toast("Kein offener Titel in dem Topf", true); return; }
+    medVorschlag = topf[Math.floor(Math.random() * topf.length)];
     renderMedien();
   },
   "medien-titel-menue": (el) => medienTitelSheet(el.dataset.kat, el.dataset.titel, el.dataset.zusatz),
+
+  "rez-filter": (el) => {
+    rezFilter = el.dataset.filter;
+    document.querySelectorAll("#rezfilter .chip").forEach((x) =>
+      x.classList.toggle("an", x.dataset.filter === rezFilter));
+    rezFiltern();
+  },
+  "katchip": (el) => el.classList.toggle("an"),
+  "rez-neu": () => rezeptSheet(null),
+  "rez-bearbeiten": (el) => rezeptSheet(el.dataset.datei),
+  "rez-speichern": async (el) => {
+    const datei = el.dataset.datei;
+    const felder = rezFelderLesen();
+    let neu;
+    try {
+      neu = datei
+        ? rezeptBearbeiten(text("Rezepte/" + datei), datei, felder)
+        : rezeptNeu(felder);
+    } catch (e) { toast(e.message, true); return; }
+    sheetZu();
+    await mitToast(async () => {
+      const pfad = "Rezepte/" + neu.datei;
+      if (!datei) {
+        await transaktion([pfad], (texte) => {
+          if (texte[pfad].trim()) throw new Error("Gibt es schon: " + neu.datei);
+          return { [pfad]: neu.text };
+        }, "Mobil: Rezept angelegt");
+      } else {
+        const altPfad = "Rezepte/" + datei;
+        if (pfad !== altPfad && (await holeDatei(pfad)).text.trim()) {
+          throw new Error("Es gibt schon ein Rezept namens " + neu.titel);
+        }
+        const kal = "Dashboard/Kalender.md";
+        const umbenannt = neu.titel !== neu.altTitel;
+        const pfade = umbenannt ? [pfad, kal] : [pfad];
+        await transaktion(pfade, (texte) => {
+          const out = { [pfad]: neu.text };
+          if (umbenannt) out[kal] = kochtermineUmbenennen(texte[kal], neu.altTitel, neu.titel);
+          return out;
+        }, "Mobil: Rezept bearbeitet");
+        if (pfad !== altPfad) {
+          await loeschDatei(altPfad, "Mobil: Rezept umbenannt");
+          rezNamen = rezNamen.filter((x) => x !== datei);
+        }
+      }
+      if (!rezNamen.includes(neu.datei)) { rezNamen.push(neu.datei); rezNamen.sort(); }
+      cacheSpeichern();
+    }, datei ? "Rezept gespeichert" : "Rezept angelegt");
+  },
+  "rez-plan": (el) => rezeptPlanSheet(el.dataset.titel),
+  "rez-plan-speichern": async (el) => {
+    const titel = el.dataset.titel;
+    const datum = $("#rp-datum").value;
+    if (!datum) { toast("Kein Datum gewählt", true); return; }
+    sheetZu();
+    const kal = "Dashboard/Kalender.md";
+    await mitToast(() => transaktion([kal],
+      (texte) => ({ [kal]: rezeptEinplanen(texte[kal], titel, datum, "").text }),
+      "Mobil: Rezept eingeplant"), "Eingeplant");
+  },
+  "rez-absagen": async (el) => {
+    const titel = el.dataset.titel, datum = el.dataset.datum;
+    const kal = "Dashboard/Kalender.md";
+    await mitToast(() => transaktion([kal],
+      (texte) => ({ [kal]: rezeptAusplanen(texte[kal], titel, datum).text }),
+      "Mobil: Kochtermin abgesagt"), "Abgesagt");
+  },
+  "rez-archiv-frage": (el) => rezeptArchivSheet(el.dataset.datei, el.dataset.titel),
+  "rez-archivieren": async (el) => {
+    const datei = el.dataset.datei, titel = el.dataset.titel;
+    sheetZu();
+    await mitToast(async () => {
+      const pfad = "Rezepte/" + datei;
+      const inhalt = (await holeDatei(pfad)).text;
+      const liste = await ladeOrdner("Rezepte/" + REZEPT_ARCHIV).catch(() => []);
+      const namen = liste.filter((e) => e.type === "file").map((e) => e.name);
+      const basis = datei.slice(0, -3);
+      let ziel = basis + ".md", n = 2;
+      while (namen.includes(ziel)) { ziel = basis + " (" + n + ").md"; n += 1; }
+      await putDatei("Rezepte/" + REZEPT_ARCHIV + "/" + ziel, inhalt, "Mobil: Rezept archiviert");
+      await loeschDatei(pfad, "Mobil: Rezept archiviert");
+      rezNamen = rezNamen.filter((x) => x !== datei);
+      cacheSpeichern();
+    }, titel + " archiviert");
+  },
+  "rez-video": () => rezeptVideoSheet(),
+  "rez-queue-anlegen": async () => {
+    const url = $("#rv-url").value.trim();
+    const notiz = $("#rv-text").value;
+    const kats = katChipsLesen("rv-kat");
+    const stempel = jetztStempel();
+    try {
+      rezeptQueueAnlegen(text(REZEPT_QUEUE_PFAD), url, notiz, stempel, kats);
+    } catch (e) { toast(e.message, true); return; }
+    sheetZu();
+    await mitToast(() => transaktion([REZEPT_QUEUE_PFAD],
+      (texte) => ({ [REZEPT_QUEUE_PFAD]:
+        rezeptQueueAnlegen(texte[REZEPT_QUEUE_PFAD], url, notiz, stempel, kats).text }),
+      "Mobil: Video in die Warteschlange"), "In der Warteschlange");
+  },
+  "rez-queue-weg": async (el) => {
+    const url = el.dataset.url;
+    await mitToast(() => transaktion([REZEPT_QUEUE_PFAD],
+      (texte) => ({ [REZEPT_QUEUE_PFAD]: rezeptQueueWeg(texte[REZEPT_QUEUE_PFAD], url).text }),
+      "Mobil: Video aus der Warteschlange"), "Rausgenommen");
+  },
 };
 
 document.addEventListener("click", (ev) => {
