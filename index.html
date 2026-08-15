@@ -372,10 +372,10 @@ nav.tabs button.aktiv { color: var(--akzent); }
   <div class="blatt" id="blatt-kalender">
     <div id="teil-kalender"></div>
     <div id="teil-tagebuch"></div>
+    <div id="teil-sozial"></div>
   </div>
   <div class="blatt" id="blatt-training"></div>
   <div class="blatt" id="blatt-medien"></div>
-  <div class="blatt" id="blatt-sozial"></div>
   <div class="blatt" id="blatt-rezepte"></div>
 </main>
 <button class="fab sichtbar" id="fab" data-aktion="fab" aria-label="Neues Todo">+</button>
@@ -399,10 +399,6 @@ nav.tabs button.aktiv { color: var(--akzent); }
   <button data-aktion="tab" data-tab="medien">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 4v16M17 4v16M2 9h5M2 15h5M17 9h5M17 15h5"/></svg>
     Medien
-  </button>
-  <button data-aktion="tab" data-tab="sozial">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-    Sozial
   </button>
 </nav>
 <div class="schleier" id="schleier"><div class="sheet" id="sheetinhalt"></div></div>
@@ -3128,6 +3124,9 @@ function renderTagebuch() {
 }
 
 // ------------------------------------------------------------- Sozial
+// Sitzt am Handy unten im Reiter Kalender, unter dem Tagebuch, und hat
+// bewusst keinen eigenen Tab mehr: sechs Tabs waren in der Leiste zu eng.
+// Am PC bleibt Sozial ein eigener Reiter, generate.py wird nicht angefasst.
 
 function renderSozial() {
   const daten = parseSozial(text("Dashboard/Sozial.md"));
@@ -3135,6 +3134,8 @@ function renderSozial() {
   const bilanz = sozialBilanz(daten);
   const werk = sozialWerkzeug();
   const b = [];
+
+  b.push("<div class=\"sektionstitel\" style=\"margin:20px 0 10px\">Sozial</div>");
 
   b.push("<div class=\"karte\"><h3>Diese Woche</h3>" +
     "<div class=\"gross\">" + woche.tage + " von " + woche.ziel + " Tagen</div>" +
@@ -3205,7 +3206,7 @@ function renderSozial() {
     b.push("</div>");
   }
 
-  $("#blatt-sozial").innerHTML = b.join("");
+  $("#teil-sozial").innerHTML = b.join("");
 }
 
 // ---------------------------------------------------------- Training
