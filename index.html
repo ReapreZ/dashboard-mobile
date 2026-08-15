@@ -215,6 +215,11 @@ label.feld { display: block; font-size: 12.5px; color: var(--leise); margin-bott
 .trsaetze { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 2px; }
 .trsatz { font-size: 13px; padding: 3px 10px; border-radius: 999px; background: var(--karte2); border: 1px solid var(--rand); color: var(--ok); font-weight: 600; font-family: inherit; }
 .trsatz:active { border-color: var(--akzent); }
+/* Notizfeld und Satz-Knopf teilen sich eine Zeile, der Knopf sitzt rechts. */
+.trnotizzeile { display: flex; gap: 8px; align-items: flex-start; }
+.trnotizzeile .tr-notiz { flex: 1 1 auto; margin-bottom: 0; }
+.knopf.schmal { width: auto; flex: 0 0 auto; padding: 11px 14px; font-size: 15px; }
+.trnotiz { color: var(--akzent); font-weight: 600; }
 
 /* Medien */
 /* Untertabs: immer genau eine Kategorie sichtbar, sonst scrollt man am
@@ -260,7 +265,15 @@ label.feld { display: block; font-size: 12.5px; color: var(--leise); margin-bott
 .kochzeile .wann.jetzt { color: var(--akzent); font-weight: 600; }
 .kochzeile .titel { flex: 1; overflow-wrap: anywhere; }
 .kochzeile .zu { display: block; color: var(--leise); font-size: 12px; }
-.reztitel { font-size: 17px; font-weight: 700; margin-bottom: 8px; overflow-wrap: anywhere; }
+.reztitel { font-size: 17px; font-weight: 700; margin-bottom: 8px; overflow-wrap: anywhere;
+  display: flex; align-items: baseline; gap: 8px; }
+.reztitel .pfeil { margin-left: auto; color: var(--leise); font-size: 12px;
+  transition: transform .15s; flex: 0 0 auto; }
+/* Die ganze Rezeptkarte ist zugeklappt, sichtbar bleibt nur der Kopf. */
+.rezauf > summary { list-style: none; display: block; cursor: pointer; }
+.rezauf > summary::-webkit-details-marker { display: none; }
+.rezauf > summary .pills { margin-bottom: 0; }
+.rezauf[open] > summary .reztitel .pfeil { transform: rotate(180deg); }
 .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
 .pill {
   font-size: 12px; padding: 2px 9px; border-radius: 999px;
@@ -1732,6 +1745,37 @@ function trainingLogzeile(datum, tag, uebung, saetze) {
   return datum + " | " + tag + " | " + uebung + " | " + saetze.map(trainingSatzText).join(", ");
 }
 
+// Eine Zeile aus "## Übungen" ist Tag | Übung oder Tag | Übung | Notiz.
+// Alte Zeilen ohne Notiz bleiben gueltig, die Notiz ist dann leer.
+function trainingUebungszeile(z) {
+  const teile = String(z == null ? "" : z).split("|");
+  return {
+    tag: (teile[0] || "").trim(),
+    name: (teile[1] || "").trim(),
+    notiz: (teile[2] || "").trim(),
+  };
+}
+
+function trainingUebungstext(tag, uebung, notiz) {
+  return notiz ? tag + " | " + uebung + " | " + notiz : tag + " | " + uebung;
+}
+
+function trainingNotiztext(notiz) {
+  notiz = String(notiz == null ? "" : notiz).replace(/\|/g, "/")
+    .replace(/\s+/g, " ").trim();
+  if (notiz.length > 120) throw new Error("Notiz zu lang");
+  if (notiz.startsWith("#") || notiz.startsWith("<!--")) {
+    throw new Error("Ungueltige Notiz: " + notiz);
+  }
+  return notiz;
+}
+
+function trainingNotiz(daten, tag, uebung) {
+  const k = String(tag == null ? "" : tag).toLowerCase() + "|"
+    + String(uebung == null ? "" : uebung).toLowerCase();
+  return (daten.notizen || {})[k] || "";
+}
+
 function parseTraining(text) {
   const ab = abschnitte(text);
   const tage = [];
@@ -1740,14 +1784,16 @@ function parseTraining(text) {
     if (name && !tage.some((t) => t.toLowerCase() === name.toLowerCase())) tage.push(name);
   }
   const uebungen = {};
+  const notizen = {};
   for (const t of tage) uebungen[t] = [];
   for (const z of ab["Übungen"] || []) {
     if (!z.includes("|")) continue;
-    const i = z.indexOf("|");
-    const tag = z.slice(0, i).trim(), name = z.slice(i + 1).trim();
-    const ziel = tage.find((t) => t.toLowerCase() === tag.toLowerCase());
-    if (!ziel || !name) continue;
-    if (!uebungen[ziel].some((u) => u.toLowerCase() === name.toLowerCase())) uebungen[ziel].push(name);
+    const teil = trainingUebungszeile(z);
+    const ziel = tage.find((t) => t.toLowerCase() === teil.tag.toLowerCase());
+    if (!ziel || !teil.name) continue;
+    if (!uebungen[ziel].some((u) => u.toLowerCase() === teil.name.toLowerCase())) uebungen[ziel].push(teil.name);
+    const k = ziel.toLowerCase() + "|" + teil.name.toLowerCase();
+    if (teil.notiz && !(k in notizen)) notizen[k] = teil.notiz;
   }
   const log = [];
   for (const z of ab["Log"] || []) {
@@ -1760,7 +1806,7 @@ function parseTraining(text) {
     log.push({ datum: d, tag: m[2], uebung: m[3], saetze });
   }
   log.sort((a, b) => a.datum - b.datum);
-  return { tage, uebungen, log };
+  return { tage, uebungen, notizen, log };
 }
 
 function trainingName(name, maxlen, was) {
@@ -1814,8 +1860,29 @@ function trainingUebungAnlegen(text, tag, name) {
     if (u.toLowerCase() === name.toLowerCase()) return { text: nl(text), name: u };
   }
   const zeilen = trainingZeilen(text);
-  sozialAnhaengen(zeilen, "Übungen", [ziel + " | " + name]);
+  sozialAnhaengen(zeilen, "Übungen", [trainingUebungstext(ziel, name, "")]);
   return { text: joinZeilen(zeilen), name };
+}
+
+function trainingNotizSetzen(text, tag, uebung, notiz) {
+  notiz = trainingNotiztext(notiz);
+  const daten = parseTraining(text);
+  const ziel = trainingTagFinden(daten, tag);
+  const ueb = trainingUebungFinden(daten, ziel, uebung);
+  const zeilen = trainingZeilen(text);
+  const i = sektionIndex(zeilen, "Übungen");
+  if (i !== null) {
+    for (const j of trainingDatenzeilen(zeilen, i, sektionEnde(zeilen, i))) {
+      if (!zeilen[j].includes("|")) continue;
+      const teil = trainingUebungszeile(zeilen[j]);
+      if (teil.tag.toLowerCase() === ziel.toLowerCase()
+          && teil.name.toLowerCase() === ueb.toLowerCase()) {
+        zeilen[j] = trainingUebungstext(teil.tag, teil.name, notiz);
+        return { text: joinZeilen(zeilen), uebung: ueb, notiz };
+      }
+    }
+  }
+  throw new Error("Uebung nicht gefunden: " + uebung);
 }
 
 function trainingUebungLoeschen(text, tag, name) {
@@ -1826,10 +1893,10 @@ function trainingUebungLoeschen(text, tag, name) {
     const nameZiel = String(name == null ? "" : name).trim().toLowerCase();
     for (const j of trainingDatenzeilen(zeilen, i, sektionEnde(zeilen, i))) {
       if (!zeilen[j].includes("|")) continue;
-      const k = zeilen[j].indexOf("|");
-      const t = zeilen[j].slice(0, k), u = zeilen[j].slice(k + 1);
-      if (t.trim().toLowerCase() === tagZiel && u.trim().toLowerCase() === nameZiel) {
-        const weg = u.trim();
+      const teil = trainingUebungszeile(zeilen[j]);
+      const t = teil.tag, u = teil.name;
+      if (t.toLowerCase() === tagZiel && u.toLowerCase() === nameZiel) {
+        const weg = u;
         zeilen.splice(j, 1);
         if (j > 0 && j < zeilen.length && !zeilen[j].trim() && !zeilen[j - 1].trim()) {
           zeilen.splice(j, 1);
@@ -2556,6 +2623,8 @@ if (typeof module !== "undefined") {
     TRAINING_LOG_RE, trainingZeilen, parseTraining, trainingSaetzeParsen,
     trainingSatzText, trainingGewichtText, trainingLogzeile,
     trainingTagAnlegen, trainingTagOben, trainingUebungAnlegen,
+    trainingUebungszeile, trainingUebungstext, trainingNotiztext,
+    trainingNotiz, trainingNotizSetzen,
     trainingUebungLoeschen, trainingSatz, trainingSatzWeg,
     trainingSaetzeSetzen, trainingSatzPruefen,
     MEDIEN_KAT, MEDIEN_ORDNER, medienKat, notizName, medienZeilen,
@@ -2624,7 +2693,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 12;
+const VERSION = 13;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -3238,7 +3307,6 @@ function renderTraining() {
     });
     b.push("<button class=\"chip leise\" data-aktion=\"training-tag-neu\">+ Tag</button>");
     b.push("</div>");
-    b.push("<div class=\"hilfetext\" style=\"margin-top:8px\">Tippen schiebt den Tag nach ganz oben, der oberste ist dein aktueller Tag.</div>");
   } else {
     b.push("<div class=\"hilfetext\">Noch keine Trainingstage. Leg den ersten an, zum Beispiel Push.</div>");
     b.push("<button class=\"knopf zweit\" data-aktion=\"training-tag-neu\" style=\"margin-top:8px\">+ Trainingstag anlegen</button>");
@@ -3264,23 +3332,31 @@ function renderTraining() {
       }
       const bestes = gewichte.length ? Math.max.apply(null, gewichte) : null;
 
+      const notiz = trainingNotiz(d, akt, u);
+
       b.push("<div class=\"karte\"><h3>" + esc(u) +
-        (bestes !== null ? " <span class=\"zusatz\">Bestes " + trainingGewichtText(bestes) + " kg</span>" : "") + "</h3>");
-      if (frueher.length) {
-        const x = frueher[frueher.length - 1];
-        b.push("<div class=\"hilfetext\">Letztes Mal " + trainingWann(x.datum) + ": " + esc(trainingSaetzeKurz(x.saetze)) + "</div>");
+        (bestes !== null ? " <span class=\"zusatz\">Max: " + trainingGewichtText(bestes) + " kg</span>" : "") + "</h3>");
+      if (frueher.length || notiz) {
+        const teile = [];
+        if (frueher.length) {
+          const x = frueher[frueher.length - 1];
+          teile.push("Zuletzt: " + trainingWann(x.datum) + ", " + esc(trainingSaetzeKurz(x.saetze)));
+        }
+        if (notiz) teile.push("<span class=\"trnotiz\">" + esc(notiz) + "</span>");
+        b.push("<div class=\"hilfetext\">" + teile.join(" &middot; ") + "</div>");
       }
       if (heuteE) {
         b.push("<div class=\"trsaetze\">" + heuteE.saetze.map(
           (s, i) => "<button class=\"trsatz\" data-aktion=\"training-satz-edit\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\" data-nr=\"" + i + "\">" + esc(trainingSatzText(s)) + "</button>").join("") + "</div>");
-        b.push("<div class=\"hilfetext\">Satz antippen zum Ändern oder Löschen.</div>");
       }
       const eing = trEingaben[u] || {};
-      b.push("<div class=\"zeile2\"><div><label class=\"feld\">Gewicht in kg, leer ohne</label>" +
+      b.push("<div class=\"zeile2\"><div><label class=\"feld\">Gewicht</label>" +
         "<input type=\"number\" step=\"0.25\" inputmode=\"decimal\" class=\"tr-gew\" value=\"" + esc(eing.gew || "") + "\"></div>" +
         "<div><label class=\"feld\">Wiederholungen</label>" +
         "<input type=\"number\" inputmode=\"numeric\" class=\"tr-wdh\" value=\"" + esc(eing.wdh || "") + "\"></div></div>");
-      b.push("<button class=\"knopf\" data-aktion=\"training-satz\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\">+ Satz eintragen</button>");
+      b.push("<div class=\"trnotizzeile\">" +
+        "<input type=\"text\" class=\"tr-notiz\" maxlength=\"120\" placeholder=\"Notiz zur Übung\" value=\"" + esc(notiz) + "\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\">" +
+        "<button class=\"knopf schmal\" data-aktion=\"training-satz\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\">+ Satz</button></div>");
       if (!heuteE && frueher.length) {
         b.push("<button class=\"knopf zweit\" data-aktion=\"training-uebernehmen\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\" style=\"margin-top:8px\">Wie letztes Mal (" + esc(trainingSaetzeKurz(frueher[frueher.length - 1].saetze)) + ")</button>");
       }
@@ -3322,6 +3398,20 @@ function renderTraining() {
   }
 
   $("#blatt-training").innerHTML = b.join("");
+
+  // Notiz je Uebung speichert sich, sobald das Feld den Fokus verliert.
+  document.querySelectorAll("#blatt-training .tr-notiz").forEach((el) => {
+    const alt = el.value;
+    el.addEventListener("change", () => {
+      const tag = el.dataset.tag, uebung = el.dataset.uebung, wert = el.value;
+      if (wert === alt) return;
+      mitToast(() => transaktion(["Dashboard/Training.md"],
+        (texte) => ({ "Dashboard/Training.md":
+          trainingNotizSetzen(texte["Dashboard/Training.md"], tag, uebung, wert).text }),
+        "Mobil: Notiz " + uebung),
+        wert.trim() ? "Notiz gemerkt" : "Notiz ist raus");
+    });
+  });
 }
 
 function trainingHeutigeRoh(t, tag, uebung) {
@@ -3340,7 +3430,7 @@ function trainingHeutigeRoh(t, tag, uebung) {
 function trainingSatzEditSheet(tag, uebung, nr, g, w) {
   const idx = "data-tag=\"" + esc(tag) + "\" data-uebung=\"" + esc(uebung) + "\" data-nr=\"" + nr + "\"";
   sheetOeffnen("<div class=\"griff\"></div><h2>" + esc(uebung) + " <span class=\"zusatz\">Satz " + (nr + 1) + "</span></h2>" +
-    "<div class=\"zeile2\"><div><label class=\"feld\">Gewicht in kg, leer ohne</label>" +
+    "<div class=\"zeile2\"><div><label class=\"feld\">Gewicht</label>" +
     "<input type=\"number\" step=\"0.25\" inputmode=\"decimal\" id=\"tr-edit-gew\" value=\"" + esc(g) + "\"></div>" +
     "<div><label class=\"feld\">Wiederholungen</label>" +
     "<input type=\"number\" inputmode=\"numeric\" id=\"tr-edit-wdh\" value=\"" + esc(w) + "\"></div></div>" +
@@ -3628,16 +3718,23 @@ function renderRezepte() {
       r.kategorien.map((k) => KAT_LABEL[k])).join(" ").toLowerCase();
     b.push("<article class=\"karte rezkarte\" data-kat=\"" + esc(r.kategorien.join(" ")) +
       "\" data-suche=\"" + esc(such) + "\">");
-    b.push("<div class=\"reztitel\">" + esc(r.titel) + "</div>");
+    // Zugeklappt zeigt die Karte nur Titel, Naehrwerte, Dauer und Tags.
+    // Alles andere kommt erst beim Auftippen.
+    const kopf = [];
+    if (r.naehrwerte) kopf.push("<span class=\"pill naehr\">" + esc(r.naehrwerte) + "</span>");
+    if (r.dauer) kopf.push("<span class=\"pill\">" + esc(r.dauer) + "</span>");
+    for (const t of r.tags) kopf.push("<span class=\"pill\">#" + esc(t) + "</span>");
+    b.push("<details class=\"rezauf\"><summary>" +
+      "<div class=\"reztitel\">" + esc(r.titel) + "<span class=\"pfeil\">▾</span></div>" +
+      (kopf.length ? "<div class=\"pills\">" + kopf.join("") + "</div>" : "") +
+      "</summary>");
+
     const pills = [];
     for (const d of (geplant[r.titel] || []).slice(0, 2)) {
       pills.push("<span class=\"pill ok\">geplant " + esc(kurzDatum(d)) + "</span>");
     }
     for (const k of r.kategorien) pills.push("<span class=\"pill kat\">" + esc(KAT_LABEL[k]) + "</span>");
     if (r.portionen) pills.push("<span class=\"pill\">" + esc(portionenLabel(r.portionen)) + "</span>");
-    if (r.dauer) pills.push("<span class=\"pill\">" + esc(r.dauer) + "</span>");
-    if (r.naehrwerte) pills.push("<span class=\"pill naehr\">" + esc(r.naehrwerte) + "</span>");
-    for (const t of r.tags) pills.push("<span class=\"pill\">#" + esc(t) + "</span>");
     if (pills.length) b.push("<div class=\"pills\">" + pills.join("") + "</div>");
 
     b.push("<details class=\"rezdet\"><summary><span class=\"pfeil\">▾</span> Zutaten" +
@@ -3661,6 +3758,7 @@ function renderRezepte() {
       "<button class=\"chip\" data-aktion=\"rez-archiv-frage\" " + idx + ">Archivieren</button>" +
       (r.quelle ? "<a class=\"chip\" href=\"" + esc(r.quelle) + "\" target=\"_blank\" rel=\"noopener\">" +
         esc(dienstName(r.quelle)) + "</a>" : "") + "</div>");
+    b.push("</details>");
     b.push("</article>");
   }
 
@@ -4019,11 +4117,17 @@ const AKTIONEN = {
     const k = el.closest(".karte");
     const gew = k.querySelector(".tr-gew").value.trim();
     const wdh = k.querySelector(".tr-wdh").value.trim();
+    const nf = k.querySelector(".tr-notiz");
+    const notiz = nf ? nf.value : null;
     if (!wdh) { toast("Wiederholungen fehlen", true); return; }
     trEingaben[uebung] = { gew, wdh };
     await mitToast(() => transaktion(["Dashboard/Training.md", "Dashboard/Habits.md"],
       (texte) => {
-        const r = trainingSatz(texte["Dashboard/Training.md"], tag, uebung, gew, wdh, iso(heute()));
+        // Eine getippte Notiz kommt im selben Commit mit, sonst ginge sie
+        // beim Neuzeichnen nach dem Satz verloren.
+        let t = texte["Dashboard/Training.md"];
+        if (notiz !== null) t = trainingNotizSetzen(t, tag, uebung, notiz).text;
+        const r = trainingSatz(t, tag, uebung, gew, wdh, iso(heute()));
         const h = habitSetzen(texte["Dashboard/Habits.md"], "gym", true, iso(heute()));
         return { "Dashboard/Training.md": r.text, "Dashboard/Habits.md": h.text };
       }, "Mobil: Training " + uebung), "Satz notiert");
