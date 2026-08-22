@@ -2150,6 +2150,33 @@ function medienFortschritt(text, titel, wert) {
   return { text: joinZeilen(zeilen) };
 }
 
+function medienBearbeiten(text, titelAlt, titel, zusatz, fortschritt) {
+  const zeilen = zeilenAus(text);
+  const i = medienIndex(zeilen, titelAlt);
+  if (i === null) throw new Error("Titel nicht in der Watchliste: " + titelAlt);
+  const altKopf = zeilen[i].split("|")[0].trim();
+  const t = medienTeile(zeilen[i]);
+  // Von Hand eingetragene Titel ohne [[Wikilink]] bleiben unverlinkt, damit
+  // Bearbeiten allein (ohne Titelaenderung) das Format nicht anfasst.
+  const verlinkt = MEDIEN_LINK_ZUSATZ_RE.test(altKopf);
+  const neuTitel = (titel !== undefined && titel !== null ? titel : t.titel)
+    .replace(/\|/g, " ").trim();
+  if (!neuTitel) throw new Error("Kein Titel");
+  if (neuTitel.length > 200) throw new Error("Titel zu lang");
+  if (neuTitel.toLowerCase() !== t.titel.toLowerCase()) {
+    const dup = medienIndex(zeilen, neuTitel);
+    if (dup !== null && dup !== i) throw new Error("Es gibt schon einen Eintrag namens " + neuTitel);
+  }
+  const neuZusatz = (zusatz !== undefined && zusatz !== null ? zusatz : t.zusatz)
+    .replace(/\|/g, "/").trim();
+  const neuFort = (fortschritt === undefined || fortschritt === null)
+    ? t.fort : String(fortschritt).replace(/\|/g, "/").trim();
+  let kopf = verlinkt ? "[[" + neuTitel + "]]" : neuTitel;
+  if (neuZusatz) kopf += " " + neuZusatz;
+  zeilen[i] = neuFort !== null ? kopf + " | " + neuFort : kopf;
+  return { text: joinZeilen(zeilen), titel: neuTitel };
+}
+
 function medienNote(bewertung) {
   const b = String(bewertung || "").trim().replace(",", ".");
   if (!b) return "";
@@ -2629,8 +2656,8 @@ if (typeof module !== "undefined") {
     trainingSaetzeSetzen, trainingSatzPruefen,
     MEDIEN_KAT, MEDIEN_ORDNER, medienKat, notizName, medienZeilen,
     medienTeile, medienIndex, parseMedienAlle, parseGeschautAlle,
-    medienHinzufuegen, medienAufstarten, medienFortschritt, medienNote,
-    medienFertig, medienNotizErgaenzen,
+    medienHinzufuegen, medienAufstarten, medienFortschritt, medienBearbeiten,
+    medienNote, medienFertig, medienNotizErgaenzen,
     spielFortschrittTeile, spielFortschrittBauen,
     KATEGORIEN, KAT_KEYS, KAT_LABEL, KAT_ALIAS, KOCH_PREFIX,
     QUEUE_GRUNDGERUEST, katKey, katKeys, dienstName, listenzeile,
@@ -2693,7 +2720,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 13;
+const VERSION = 14;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -3357,9 +3384,6 @@ function renderTraining() {
       b.push("<div class=\"trnotizzeile\">" +
         "<input type=\"text\" class=\"tr-notiz\" maxlength=\"120\" placeholder=\"Notiz zur Übung\" value=\"" + esc(notiz) + "\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\">" +
         "<button class=\"knopf schmal\" data-aktion=\"training-satz\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\">+ Satz</button></div>");
-      if (!heuteE && frueher.length) {
-        b.push("<button class=\"knopf zweit\" data-aktion=\"training-uebernehmen\" data-tag=\"" + esc(akt) + "\" data-uebung=\"" + esc(u) + "\" style=\"margin-top:8px\">Wie letztes Mal (" + esc(trainingSaetzeKurz(frueher[frueher.length - 1].saetze)) + ")</button>");
-      }
       b.push("<details class=\"liste-details\" style=\"margin-top:8px\"><summary><span class=\"pfeil\">▶</span>Verlauf<span class=\"anzahl\">" +
         eintraege.length + (eintraege.length === 1 ? " Einheit" : " Einheiten") + "</span></summary>");
       for (const x of eintraege.slice(-10).reverse()) {
@@ -3556,19 +3580,18 @@ function renderMedien() {
     const idx = "data-kat=\"" + esc(d.kat) + "\" data-titel=\"" + esc(d.titel) + "\"";
     b.push("<div class=\"karte medkat med-" + esc(d.kat) + "\"><h3>" + esc(d.titel) + " <span class=\"zusatz\">" + esc(d.typ) + "</span></h3>");
     if (d.zusatz) b.push("<div class=\"hilfetext\">" + esc(d.zusatz) + "</div>");
-    if (d.kat === "spiel") {
-      const sp = spielFortschrittTeile(d.fortschritt);
-      b.push("<div class=\"zeile2\"><div><label class=\"feld\">Plattform</label>" +
-        "<input type=\"text\" class=\"med-plat\" value=\"" + esc(sp.plattform) + "\"></div>" +
-        "<div><label class=\"feld\">Fortschritt</label>" +
-        "<input type=\"text\" class=\"med-fort\" value=\"" + esc(sp.fortschritt) + "\"></div></div>");
-    } else {
-      b.push("<label class=\"feld\">Folge oder Staffel</label>" +
-        "<input type=\"text\" class=\"med-fort\" value=\"" + esc(d.fortschritt) + "\">");
-    }
+    // Plattform und Fortschritt gelten seit kurzem fuer alle Kategorien,
+    // nicht nur Spiele, genau wie am PC.
+    const sp = spielFortschrittTeile(d.fortschritt);
+    b.push("<div class=\"zeile2\"><div><label class=\"feld\">Plattform</label>" +
+      "<input type=\"text\" class=\"med-plat\" value=\"" + esc(sp.plattform) + "\"></div>" +
+      "<div><label class=\"feld\">Fortschritt</label>" +
+      "<input type=\"text\" class=\"med-fort\" value=\"" + esc(sp.fortschritt) + "\"></div></div>");
     b.push("<div class=\"zeile2\" style=\"margin-top:8px\">" +
       "<button class=\"knopf zweit\" data-aktion=\"medien-merken\" " + idx + ">Merken</button>" +
       "<button class=\"knopf\" data-aktion=\"medien-fertig-frage\" " + idx + ">Fertig</button></div>");
+    b.push("<button class=\"chip\" data-aktion=\"medien-bearbeiten-menue\" " + idx +
+      " data-zusatz=\"" + esc(d.zusatz) + "\" style=\"margin-top:8px\">Bearbeiten</button>");
     b.push(medienNotizDetails(d.kat, d.titel));
     b.push("</div>");
   }
@@ -3610,13 +3633,24 @@ function medienFertigSheet(kat, titel) {
     "<button class=\"knopf\" data-aktion=\"medien-fertig\" data-kat=\"" + esc(kat) + "\" data-titel=\"" + esc(titel) + "\" style=\"margin-top:8px\">Als " + esc(k[5]) + " speichern</button>");
 }
 
-function medienTitelSheet(kat, titel, zusatz) {
+// Ein Antippen eines Eintrags, offen oder dabei, oeffnet dieses Sheet.
+// Titel und Zusatz sind immer editierbar, Starten und Schon fertig gibt es
+// nur fuer noch offene Titel, dabei-Eintraege haben dafuer schon eigene
+// Knoepfe auf der Karte.
+function medienBearbeitenSheet(kat, titel, zusatz, dabei) {
   const idx = "data-kat=\"" + esc(kat) + "\" data-titel=\"" + esc(titel) + "\"";
-  sheetOeffnen("<div class=\"griff\"></div><h2>" + esc(titel) + "</h2>" +
-    (zusatz ? "<div class=\"hilfetext\" style=\"margin-bottom:10px\">" + esc(zusatz) + "</div>" : "") +
-    "<button class=\"aktion\" data-aktion=\"medien-start\" " + idx + ">Starten<small>wandert zu Gerade dabei</small></button>" +
-    "<button class=\"aktion\" data-aktion=\"medien-fertig-frage\" " + idx + ">Schon fertig<small>direkt bewerten</small></button>" +
-    "<button class=\"aktion\" data-aktion=\"sheet-zu\">Abbrechen</button>");
+  let b = "<div class=\"griff\"></div><h2>Bearbeiten</h2>" +
+    "<label class=\"feld\">Titel</label>" +
+    "<input type=\"text\" id=\"med-b-titel\" value=\"" + esc(titel) + "\">" +
+    "<label class=\"feld\">Zusatz</label>" +
+    "<input type=\"text\" id=\"med-b-zusatz\" value=\"" + esc(zusatz || "") + "\">" +
+    "<button class=\"knopf\" data-aktion=\"medien-bearbeiten\" " + idx + " style=\"margin-top:8px\">Speichern</button>";
+  if (!dabei) {
+    b += "<button class=\"aktion\" data-aktion=\"medien-start\" " + idx + " style=\"margin-top:8px\">Starten<small>wandert zu Gerade dabei</small></button>" +
+      "<button class=\"aktion\" data-aktion=\"medien-fertig-frage\" " + idx + ">Schon fertig<small>direkt bewerten</small></button>";
+  }
+  b += "<button class=\"aktion\" data-aktion=\"sheet-zu\">Abbrechen</button>";
+  sheetOeffnen(b);
 }
 
 // ------------------------------------------------------------- Rezepte
@@ -4166,25 +4200,6 @@ const AKTIONEN = {
         return { "Dashboard/Training.md": trainingSaetzeSetzen(texte["Dashboard/Training.md"], tag, uebung, roh, iso(heute())).text };
       }, "Mobil: Training " + uebung + " Satz raus"), "Satz ist raus");
   },
-  "training-uebernehmen": async (el) => {
-    const { tag, uebung } = el.dataset;
-    await mitToast(() => transaktion(["Dashboard/Training.md", "Dashboard/Habits.md"],
-      (texte) => {
-        const d = parseTraining(texte["Dashboard/Training.md"]);
-        const h = iso(heute());
-        const frueher = d.log.filter((x) => x.uebung.toLowerCase() === uebung.toLowerCase() && iso(x.datum) !== h);
-        if (!frueher.length) throw new Error("Kein letztes Mal gefunden");
-        const roh = frueher[frueher.length - 1].saetze.map((s) => ({
-          gewicht: s.gewicht === null ? "" : trainingGewichtText(s.gewicht),
-          wdh: String(s.wdh),
-        }));
-        const r = trainingSaetzeSetzen(texte["Dashboard/Training.md"], tag, uebung, roh, h);
-        const hb = habitSetzen(texte["Dashboard/Habits.md"], "gym", true, h);
-        return { "Dashboard/Training.md": r.text, "Dashboard/Habits.md": hb.text };
-      }, "Mobil: Training " + uebung + " wie letztes Mal"),
-    "Übernommen, jetzt einzelne Sätze antippen zum Anpassen");
-  },
-
   "kal-monat": (el) => { kalMonat = plusMonat(kalMonat, parseInt(el.dataset.schritt, 10)); renderKalender(); },
   "kal-tag": (el) => {
     kalTag = parseDate(el.dataset.datum);
@@ -4372,7 +4387,19 @@ const AKTIONEN = {
     medVorschlag = topf[Math.floor(Math.random() * topf.length)];
     renderMedien();
   },
-  "medien-titel-menue": (el) => medienTitelSheet(el.dataset.kat, el.dataset.titel, el.dataset.zusatz),
+  "medien-titel-menue": (el) => medienBearbeitenSheet(el.dataset.kat, el.dataset.titel, el.dataset.zusatz, false),
+  "medien-bearbeiten-menue": (el) => medienBearbeitenSheet(el.dataset.kat, el.dataset.titel, el.dataset.zusatz, true),
+  "medien-bearbeiten": async (el) => {
+    const { kat, titel } = el.dataset;
+    const neuTitel = $("#med-b-titel").value.trim();
+    const neuZusatz = $("#med-b-zusatz").value.trim();
+    if (!neuTitel) { toast("Titel fehlt", true); return; }
+    sheetZu();
+    const wl = "Medien/" + medienKat(kat)[2];
+    await mitToast(() => transaktion([wl],
+      (texte) => ({ [wl]: medienBearbeiten(texte[wl], titel, neuTitel, neuZusatz).text }),
+      "Mobil: " + titel + " bearbeitet"), "Gespeichert");
+  },
   "medien-kat": (el) => {
     medKat = el.dataset.kat;
     medWuerfelKat = medKat;   // der Wuerfel folgt dem Untertab
