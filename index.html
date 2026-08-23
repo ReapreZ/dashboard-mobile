@@ -220,6 +220,13 @@ label.feld { display: block; font-size: 12.5px; color: var(--leise); margin-bott
 .trnotizzeile .tr-notiz { flex: 1 1 auto; margin-bottom: 0; }
 .knopf.schmal { width: auto; flex: 0 0 auto; padding: 11px 14px; font-size: 15px; }
 .trnotiz { color: var(--akzent); font-weight: 600; }
+/* Letzte Einheiten: zu wie eine Zeile in der Liste, aufgeklappt die Übungen
+   in der Reihenfolge, in der sie eingetragen wurden, mit Gewicht und Wdh. */
+.treinheit summary .datum { color: var(--leise); font-weight: 400; }
+.treinheitueb { display: flex; gap: 8px; align-items: baseline; font-size: 14px; padding: 6px 2px 6px 22px; border-top: 1px solid var(--rand); }
+.treinheitueb .nr { flex: 0 0 14px; color: var(--leise); font-size: 12px; }
+.treinheitueb .was { flex: 1; overflow-wrap: anywhere; }
+.treinheitueb .saetze { color: var(--akzent); font-weight: 600; text-align: right; overflow-wrap: anywhere; }
 
 /* Medien */
 /* Untertabs: immer genau eine Kategorie sichtbar, sonst scrollt man am
@@ -427,8 +434,13 @@ const WOCHENTAGE = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const WOCHENTAG_LANG = ["montags", "dienstags", "mittwochs", "donnerstags",
   "freitags", "samstags", "sonntags"];
 
+// Muss dieselben Schluessel in derselben Reihenfolge haben wie HABIT_LABEL
+// in generate.py, sonst fehlt ein Habit auf einer der beiden Seiten. Ein
+// Test vergleicht beide Listen gegeneinander.
 const HABIT_LABEL = {
   gym: "Gym", protein: "Protein", kalorien: "Kalorien", supps: "Supplemente",
+  "cremen-morgens": "Eincremen morgens", "cremen-abends": "Eincremen abends",
+  brille: "Brille putzen",
   lesen: "Lesen", spazieren: "Bewegung", coden: "Coden", haushalt: "Haushalt",
   raus: "Raus", tagebuch: "Tagebuch", schlaf: "Schlaf über 7h",
   abruf: "Abrufübung", sozial: "Soziale Übung",
@@ -2720,7 +2732,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 14;
+const VERSION = 16;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -3409,14 +3421,27 @@ function renderTraining() {
     }
     const keys = Array.from(gruppen.keys()).sort().reverse().slice(0, 8);
     b.push("<div class=\"karte\"><h3>Letzte Einheiten</h3>");
+    b.push("<div class=\"hilfetext\">Antippen zeigt die Übungen in der Reihenfolge, " +
+      "in der du sie eingetragen hast, mit Gewicht und Wiederholungen.</div>");
     for (const k of keys) {
       const xs = gruppen.get(k);
-      const teile = k.split("|");
+      // Der Tagname kann selbst kein Pipe enthalten, der Parser ersetzt es.
+      const trenn = k.indexOf("|");
+      const datum = k.slice(0, trenn), tagname = k.slice(trenn + 1);
       let ns = 0;
       for (const x of xs) ns += x.saetze.length;
-      b.push("<div class=\"logzeile\"><div class=\"kopf\"><span class=\"datum\">" + kurzDatum(parseDateIso(teile[0])) + "</span>" +
-        "<span>" + esc(teile[1]) + "</span>" +
-        "<span class=\"zahlen\">" + xs.length + (xs.length === 1 ? " Übung" : " Übungen") + ", " + ns + " Sätze</span></div></div>");
+      b.push("<details class=\"liste-details treinheit\"><summary>" +
+        "<span class=\"pfeil\">▶</span>" +
+        "<span class=\"datum\">" + kurzDatum(parseDateIso(datum)) + "</span>" +
+        "<span>" + esc(tagname) + "</span>" +
+        "<span class=\"anzahl\">" + xs.length + (xs.length === 1 ? " Übung" : " Übungen") +
+        ", " + ns + " Sätze</span></summary>");
+      xs.forEach((x, n) => {
+        b.push("<div class=\"treinheitueb\"><span class=\"nr\">" + (n + 1) + "</span>" +
+          "<span class=\"was\">" + esc(x.uebung) + "</span>" +
+          "<span class=\"saetze\">" + esc(trainingSaetzeKurz(x.saetze)) + "</span></div>");
+      });
+      b.push("</details>");
     }
     b.push("</div>");
   }
