@@ -253,6 +253,11 @@ label.feld { display: block; font-size: 12.5px; color: var(--leise); margin-bott
   background: var(--karte2); border: 1px solid var(--rand);
   color: var(--ok); font-weight: 600;
 }
+/* Sortierchips unter der Ueberschrift von Gerade dabei, Offen und Durch.
+   Kleiner als die normalen Chips, der Pfeil zeigt die Richtung. */
+.medsort { margin: 6px 0 4px; gap: 6px; align-items: center; }
+.medsort .chip { font-size: 12.5px; padding: 5px 10px; }
+.medsort .chip .pf { font-size: 9px; margin-left: 4px; opacity: .85; }
 .durchzeile { padding: 8px 0; border-bottom: 1px solid var(--rand); }
 .durchzeile:last-child { border-bottom: 0; }
 .durchzeile .kopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -2732,7 +2737,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 16;
+const VERSION = 17;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -3536,6 +3541,71 @@ async function medienNotizFinden(kat, titel) {
   return { pfad: haupt, eintrag: d };
 }
 
+// Sortierung je Sektion, wie am PC: zeit (Zeile in der Datei, also
+// Reihenfolge des Hinzufuegens), az (Titel), bew (nur Durch). ab dreht die
+// Richtung. Standard ist die Reihenfolge, wie die Datei sie hat, bei Durch
+// neueste zuerst. Liegt im localStorage unter medsort, getrennt vom PC.
+let medSort = {};
+try { medSort = JSON.parse(localStorage.getItem("medsort") || "{}") || {}; } catch (e) { medSort = {}; }
+let medDurchAlle = false;   // Durch zeigt erst 12, ein Chip klappt alles auf
+const MEDIEN_SORT = [["zeit", "Hinzugefügt"], ["az", "Titel"], ["bew", "Bewertung"]];
+const MEDIEN_BEW_RE = /(\d+(?:[.,]\d+)?)\s*\/\s*10\b/;
+
+function medienBewertung(note) {
+  const m = MEDIEN_BEW_RE.exec(note || "");
+  if (!m) return null;
+  const v = parseFloat(m[1].replace(",", "."));
+  return (!isNaN(v) && v >= 0 && v <= 10) ? v : null;
+}
+
+function medSortStdAb(sek, key) {
+  if (key === "bew") return true;
+  if (key === "zeit") return sek === "durch";
+  return false;
+}
+
+function medSortWahl(sek) {
+  const z = medSort[sek];
+  const keys = sek === "durch" ? ["zeit", "az", "bew"] : ["zeit", "az"];
+  if (!z || !keys.includes(z.key)) return { key: "zeit", ab: medSortStdAb(sek, "zeit") };
+  return { key: z.key, ab: !!z.ab };
+}
+
+// Sortiert Eintraege, die pos (Zeile in der Datei) tragen. Ohne Bewertung
+// immer ans Ende, egal in welche Richtung.
+function medSortiere(sek, liste) {
+  const z = medSortWahl(sek);
+  const kopie = liste.slice();
+  kopie.sort((a, b) => {
+    let r = 0;
+    if (z.key === "az") {
+      r = a.titel.toLowerCase().localeCompare(b.titel.toLowerCase(), "de");
+    } else if (z.key === "bew") {
+      const x = medienBewertung(a.note), y = medienBewertung(b.note);
+      if ((x === null) !== (y === null)) return x === null ? 1 : -1;
+      r = x === null ? 0 : x - y;
+    } else {
+      r = a.pos - b.pos;
+    }
+    if (z.ab) r = -r;
+    return r || (a.pos - b.pos);
+  });
+  return kopie;
+}
+
+function medSortChips(sek) {
+  const z = medSortWahl(sek);
+  // Ohne "Sortieren"-Beschriftung, damit alle drei Chips am iPhone in
+  // eine Zeile passen. Die Ueberschrift darueber sagt schon, worum es geht.
+  return "<div class=\"chips medsort\">" +
+    MEDIEN_SORT.filter((k) => k[0] !== "bew" || sek === "durch").map((k) => {
+      const an = z.key === k[0];
+      const ab = an ? z.ab : medSortStdAb(sek, k[0]);
+      return "<button class=\"chip" + (an ? " an" : "") + "\" data-aktion=\"medien-sort\" data-sek=\"" +
+        sek + "\" data-key=\"" + k[0] + "\">" + k[1] + "<span class=\"pf\">" + (ab ? "▼" : "▲") + "</span></button>";
+    }).join("") + "</div>";
+}
+
 function medienNotizDetails(kat, titel) {
   const idx = "data-kat=\"" + esc(kat) + "\" data-titel=\"" + esc(titel) + "\"";
   return "<details class=\"mednotiz\"><summary data-aktion=\"medien-notiz\" " + idx + ">" +
@@ -3594,11 +3664,15 @@ function renderMedien() {
   }
   b.push("</div>");
 
-  const dabei = m.dabei.filter((d) => d.kat === medKat);
+  // pos ist die Stelle in der Datei, danach sortiert "Hinzugefügt".
+  const dabei = medSortiere("dabei", m.dabei.filter((d) => d.kat === medKat)
+    .map((d, i) => Object.assign({ pos: i }, d)));
   b.push("<div class=\"karte\"><h3>Gerade dabei <span class=\"zusatz\">" +
     esc(kat[4]) + ", " + dabei.length + "</span></h3>");
   if (!dabei.length) {
     b.push("<div class=\"hilfetext\">Nichts läuft gerade. Würfel oben einen Vorschlag oder starte einen offenen Titel.</div>");
+  } else if (dabei.length > 1) {
+    b.push(medSortChips("dabei"));
   }
   b.push("</div>");
   for (const d of dabei) {
@@ -3621,11 +3695,14 @@ function renderMedien() {
     b.push("</div>");
   }
 
-  const offen = m.backlog.filter((x) => x.kat === medKat);
+  const offen = medSortiere("offen", m.backlog.filter((x) => x.kat === medKat)
+    .map((x, i) => Object.assign({ pos: i }, x)));
   b.push("<div class=\"karte medkat med-" + esc(medKat) + "\"><h3>" +
     esc(kat[4]) + " offen <span class=\"zusatz\">" + offen.length + "</span></h3>");
   if (!offen.length) {
     b.push("<div class=\"hilfetext\">Nichts offen. Trag oben etwas ein.</div>");
+  } else if (offen.length > 1) {
+    b.push(medSortChips("offen"));
   }
   for (const x of offen) {
     b.push("<button class=\"medtitel\" data-aktion=\"medien-titel-menue\" data-kat=\"" + esc(x.kat) + "\" data-titel=\"" + esc(x.titel) + "\" data-zusatz=\"" + esc(x.zusatz) + "\">" + esc(x.titel) +
@@ -3637,10 +3714,19 @@ function renderMedien() {
   if (fertig && fertig.eintraege.length) {
     b.push("<div class=\"karte medkat med-" + esc(medKat) + "\"><h3>Durch <span class=\"zusatz\">" +
       fertig.eintraege.length + " " + esc(fertig.partizip) + "</span></h3>");
-    for (const x of fertig.eintraege.slice(-12).reverse()) {
+    const alle = medSortiere("durch", fertig.eintraege.map((x, i) => Object.assign({ pos: i }, x)));
+    if (alle.length > 1) b.push(medSortChips("durch"));
+    // Erst 12, sonst wird die Karte bei langen Listen endlos. Ein Chip
+    // unten klappt den Rest auf, die Sortierung gilt fuer alles.
+    const gezeigt = medDurchAlle ? alle : alle.slice(0, 12);
+    for (const x of gezeigt) {
       b.push("<div class=\"durchzeile\"><div class=\"kopf\"><span>" + esc(x.titel) + "</span>" +
         (x.note ? "<span class=\"medpill\">" + esc(x.note) + "</span>" : "") + "</div>" +
         medienNotizDetails(fertig.key, x.titel) + "</div>");
+    }
+    if (alle.length > 12) {
+      b.push("<button class=\"chip leise\" data-aktion=\"medien-durch-alle\" style=\"margin-top:8px\">" +
+        (medDurchAlle ? "Weniger anzeigen" : "Alle anzeigen (" + (alle.length - 12) + " weitere)") + "</button>");
     }
     b.push("</div>");
   }
@@ -4424,6 +4510,19 @@ const AKTIONEN = {
     await mitToast(() => transaktion([wl],
       (texte) => ({ [wl]: medienBearbeiten(texte[wl], titel, neuTitel, neuZusatz).text }),
       "Mobil: " + titel + " bearbeitet"), "Gespeichert");
+  },
+  "medien-sort": (el) => {
+    const sek = el.dataset.sek, key = el.dataset.key;
+    const z = medSortWahl(sek);
+    if (z.key === key) z.ab = !z.ab;
+    else { z.key = key; z.ab = medSortStdAb(sek, key); }
+    medSort[sek] = z;
+    try { localStorage.setItem("medsort", JSON.stringify(medSort)); } catch (e) { /* egal */ }
+    renderMedien();
+  },
+  "medien-durch-alle": () => {
+    medDurchAlle = !medDurchAlle;
+    renderMedien();
   },
   "medien-kat": (el) => {
     medKat = el.dataset.kat;
