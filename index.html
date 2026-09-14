@@ -141,20 +141,35 @@ main { padding: 14px 14px 8px; max-width: 640px; margin: 0 auto; }
   background: var(--karte); color: var(--text); font-size: 17px;
 }
 .kalgitter { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.kalgitter .wt { text-align: center; color: var(--leise); font-size: 11.5px; padding: 3px 0; }
+.kalgitter .wt { text-align: center; color: var(--leise); font-size: 12.5px; padding: 3px 0; }
 .kaltag {
-  aspect-ratio: 1; border-radius: 10px; background: var(--karte);
-  border: 1px solid var(--rand); position: relative; padding: 3px;
-  display: flex; flex-direction: column; align-items: center; font-size: 13.5px;
+  min-height: 62px; border-radius: 10px; background: var(--karte);
+  border: 1px solid var(--rand); position: relative; padding: 4px 2px 3px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px;
+  font-size: 14px; font-weight: 600; line-height: 1.15; overflow: hidden; text-align: left;
 }
 .kaltag.fremd { opacity: .32; }
 .kaltag.heute { border-color: var(--akzent); }
 .kaltag.gewaehlt { background: var(--akzent-dunkel); border-color: var(--akzent-dunkel); color: #fff; }
-.kaltag .schichtk { font-size: 9.5px; color: var(--leise); line-height: 1; }
-.kaltag.gewaehlt .schichtk { color: #fde68a; }
-.kaltag .punkte { display: flex; gap: 2px; margin-top: auto; margin-bottom: 2px; }
-.kaltag .punkt { width: 5px; height: 5px; border-radius: 50%; background: var(--akzent); }
-.kaltag .punkt.fael { background: #f87171; }
+/* Kopfzeile: Tageszahl, Schichtbuchstabe in der Schichtfarbe, roter Punkt bei faelligen Todos */
+.kaltag .nr { display: flex; align-items: center; gap: 3px; justify-content: center; }
+.kaltag .schichtk { font-size: 14px; font-weight: 800; color: var(--leise); }
+.kaltag .schichtk.frueh { color: #67e8f9; }
+.kaltag .schichtk.mittag { color: #fbbf24; }
+.kaltag .schichtk.nacht { color: #c4b5fd; }
+.kaltag.gewaehlt .schichtk { color: #fff; }
+.kaltag .punkt { width: 6px; height: 6px; border-radius: 50%; background: #f87171; flex: none; }
+/* Termine, angeschnitten, hoechstens zwei */
+/* Jeder Termin als Kachel mit leichtem Hintergrund, wie bei Apple */
+.kaltag .ev { font-size: 7px; font-weight: 500; color: #fcd9a8; line-height: 1.15;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
+  background: rgba(217, 119, 6, .22); border-radius: 4px; padding: 2px 3px; }
+/* Ein einzelner Termin darf zwei Zeilen lang sein */
+.kaltag .ev.zwei { white-space: normal; overflow-wrap: anywhere; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; padding-bottom: 1px; }
+.kaltag.gewaehlt .ev { color: #fff; background: rgba(255, 255, 255, .2); }
+.kaltag .mehr { font-size: 7px; color: var(--leise); padding-left: 3px; }
+.kaltag.gewaehlt .mehr { color: #fde68a; }
 
 /* Tagebuch */
 .tbtext {
@@ -1066,17 +1081,48 @@ function parseSchichten(text) {
     if (teile.length !== 2) continue;
     const d = parseDateIso(teile[0]);
     if (d && rotation.includes(teile[1].toLowerCase())) {
-      anker = { montag: addDays(d, -weekday(d)), schicht: teile[1].toLowerCase() };
+      anker = { montag: addDays(d, -weekday(d)), tag: d, schicht: teile[1].toLowerCase() };
       break;
     }
   }
   if (!anker) return null;
 
+  // Blockmodus: eine Schicht laeuft n Tage am Stueck, danach freie Tage,
+  // dann der naechste Block. Ohne Sektion "Block" wechselt die Schicht
+  // jede Woche (alter Modus, block bleibt null).
+  let block = null;
+  let blockTage = 0;
+  const blockFrei = {};
+  for (const z of ab["Block"] || []) {
+    const teile = z.split("|").map((x) => x.trim().toLowerCase());
+    if (teile.length === 2 && teile[0] === "tage" && /^\d+$/.test(teile[1])) {
+      blockTage = parseInt(teile[1], 10);
+    } else if (teile.length === 3 && teile[0] === "frei" && teile[1] in arten
+               && /^\d+$/.test(teile[2])) {
+      blockFrei[teile[1]] = parseInt(teile[2], 10);
+    }
+  }
+  if (blockTage > 0) {
+    const frei = {};
+    for (const k of rotation) frei[k] = blockFrei[k] || 0;
+    block = { tage: blockTage, frei };
+  }
+
   const tage = new Set();
-  for (const z of ab["Arbeitstage"] || []) {
+  const tagePro = {};
+  for (let z of ab["Arbeitstage"] || []) {
+    let ziel = null;
+    if (z.includes("|")) {
+      const idx = z.indexOf("|");
+      const k = z.slice(0, idx).trim();
+      z = z.slice(idx + 1).trim();
+      if (!(k.toLowerCase() in arten)) continue;
+      ziel = k.toLowerCase();
+    }
     const teile = z.replace(/,/g, " ").split(/\s+/).filter(Boolean);
     if (!teile.length || !teile.every((x) => WOCHENTAGE.includes(capitalize(x)))) continue;
-    for (const x of teile) tage.add(WOCHENTAGE.indexOf(capitalize(x)));
+    if (ziel && !tagePro[ziel]) tagePro[ziel] = new Set();
+    for (const x of teile) (ziel ? tagePro[ziel] : tage).add(WOCHENTAGE.indexOf(capitalize(x)));
   }
   if (!tage.size) [0, 1, 2, 3, 4].forEach((t) => tage.add(t));
 
@@ -1089,7 +1135,7 @@ function parseSchichten(text) {
       ausnahmen[iso(d)] = teile[1].toLowerCase();
     }
   }
-  return { arten, rotation, anker, tage, ausnahmen };
+  return { arten, rotation, anker, block, tage, tagePro, ausnahmen };
 }
 
 function schichtAm(tag, cfg) {
@@ -1100,13 +1146,39 @@ function schichtAm(tag, cfg) {
     if (k === "frei") return null;
     return Object.assign({}, cfg.arten[k], { kuerzel: k });
   }
-  if (!cfg.tage.has(weekday(tag))) return null;
-  const montag = addDays(tag, -weekday(tag));
-  const wochen = Math.floor(tageDiff(montag, cfg.anker.montag) / 7);
   const start = cfg.rotation.indexOf(cfg.anker.schicht);
-  const n = cfg.rotation.length;
-  const k = cfg.rotation[(((start + wochen) % n) + n) % n];
+  let k;
+  if (cfg.block) {
+    k = blockSchicht(tag, cfg, start);
+  } else {
+    const montag = addDays(tag, -weekday(tag));
+    const wochen = Math.floor(tageDiff(montag, cfg.anker.montag) / 7);
+    const n = cfg.rotation.length;
+    k = cfg.rotation[(((start + wochen) % n) + n) % n];
+  }
+  if (k === null || k === undefined) return null;
+  const erlaubt = (cfg.tagePro && cfg.tagePro[k]) || cfg.tage;
+  if (!erlaubt.has(weekday(tag))) return null;
   return Object.assign({}, cfg.arten[k], { kuerzel: k });
+}
+
+// Blockmodus: welcher Block laeuft an dem Tag? null heisst freier Tag
+// zwischen zwei Bloecken. Der Anker ist der erste Tag seines Blocks.
+function blockSchicht(tag, cfg, start) {
+  const rot = cfg.rotation;
+  const n = cfg.block.tage;
+  const frei = cfg.block.frei;
+  let zyklus = 0;
+  for (const k of rot) zyklus += n + frei[k];
+  let rest = ((tageDiff(tag, cfg.anker.tag) % zyklus) + zyklus) % zyklus;
+  for (let i = 0; i < rot.length; i++) {
+    const k = rot[(start + i) % rot.length];
+    if (rest < n) return k;
+    rest -= n;
+    if (rest < frei[k]) return null;
+    rest -= frei[k];
+  }
+  return null;
 }
 
 // ---------------------------------------------------------- Gesundheit
@@ -2737,7 +2809,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 17;
+const VERSION = 23;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -3160,13 +3232,18 @@ function renderKalender() {
     const s = schichtAm(d, cfgS);
     const cls = ["kaltag", fremd ? "fremd" : "", gleich(d, h) ? "heute" : "",
       gleich(d, kalTag) ? "gewaehlt" : ""].filter(Boolean).join(" ");
-    let punkte = "";
-    if ((proTag[iso(d)] || []).length) punkte += "<span class=\"punkt\"></span>";
-    if ((todosTag[iso(d)] || []).length) punkte += "<span class=\"punkt fael\"></span>";
-    b.push("<button class=\"" + cls + "\" data-aktion=\"kal-tag\" data-datum=\"" + iso(d) + "\">" +
-      "<span>" + d.getUTCDate() + "</span>" +
-      "<span class=\"schichtk\">" + (s ? esc(s.name[0]) : "") + "</span>" +
-      "<span class=\"punkte\">" + punkte + "</span></button>");
+    // Kopfzeile: Zahl, Schichtbuchstabe, roter Punkt bei faelligen Todos
+    // (die nicht im Kalender stehen). Darunter bis zu zwei Termine angeschnitten.
+    const tt = proTag[iso(d)] || [];
+    const nTodos = (todosTag[iso(d)] || []).length;
+    let inhalt = "<span class=\"nr\">" + d.getUTCDate() +
+      (s ? "<span class=\"schichtk " + esc(s.kuerzel) + "\">" + esc(s.name[0]) + "</span>" : "") +
+      (nTodos ? "<span class=\"punkt\"></span>" : "") + "</span>";
+    for (const t of tt.slice(0, 2)) {
+      inhalt += "<span class=\"ev" + (tt.length === 1 ? " zwei" : "") + "\">" + esc(t.titel) + "</span>";
+    }
+    if (tt.length > 2) inhalt += "<span class=\"mehr\">+" + (tt.length - 2) + "</span>";
+    b.push("<button class=\"" + cls + "\" data-aktion=\"kal-tag\" data-datum=\"" + iso(d) + "\">" + inhalt + "</button>");
   }
   b.push("</div>");
 
