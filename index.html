@@ -276,6 +276,19 @@ label.feld { display: block; font-size: 12.5px; color: var(--leise); margin-bott
 .durchzeile { padding: 8px 0; border-bottom: 1px solid var(--rand); }
 .durchzeile:last-child { border-bottom: 0; }
 .durchzeile .kopf { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.durchzeile .medrechts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.durchdatum { font-size: 11px; color: var(--leise); white-space: nowrap; }
+.medzeile { display: flex; gap: 10px; align-items: flex-start; }
+.medmitte { flex: 1; min-width: 0; }
+.medcover { flex: 0 0 44px; width: 44px; height: 64px; border-radius: 6px; overflow: hidden;
+  background: var(--karte2); border: 1px solid var(--rand); display: flex; align-items: center;
+  justify-content: center; color: var(--leise); font-size: 16px; font-weight: 700; }
+.medcover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.medcover.klein { flex-basis: 34px; width: 34px; height: 48px; font-size: 13px; }
+.medcover.gross { flex-basis: 64px; width: 64px; height: 92px; font-size: 20px; }
+.medinfo { color: var(--leise); font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
+.medinfo a { color: var(--leise); }
+.medfertig { font-size: 12px; color: var(--ok); margin-top: 2px; font-weight: 600; }
 .mednotiz summary { list-style: none; color: var(--leise); font-size: 13px; margin-top: 6px; }
 .mednotiz summary::-webkit-details-marker { display: none; }
 .mednotiz .pfeil { display: inline-block; font-size: 10px; transition: transform .15s; }
@@ -2129,6 +2142,24 @@ function spielFortschrittBauen(plattform, fortschritt) {
   return fortschritt;
 }
 const MEDIEN_LINK_ZUSATZ_RE = /^\[\[(.+?)\]\]\s*(.*)$/;
+// Plattform eines offenen Titels, hinten im Kopf: "[[Dune]] guter Film @Netflix".
+// Laeuft der Titel, steht sie stattdessen hinter dem Pipe ("Netflix: S2E3").
+// Wie MEDIEN_PLAT_RE und medien_zeile_teile am PC (21.09.2026).
+const MEDIEN_PLAT_RE = /(?:^|\s)@([^@|:\[\]]+?)\s*$/;
+
+function plattformSauber(plattform) {
+  return String(plattform || "").replace(/[@|:\[\]]/g, " ").replace(/\s{2,}/g, " ").trim();
+}
+
+// Kopf einer Watchliste-Zeile (vor dem Pipe). Die Plattform kommt nur bei
+// einem offenen Titel hier rein, bei einem laufenden ins Fortschritt-Feld.
+function medienKopfBauen(titel, zusatz, plattform, verlinkt) {
+  let kopf = (verlinkt === false) ? titel : "[[" + titel + "]]";
+  if (zusatz) kopf += " " + zusatz;
+  plattform = plattformSauber(plattform);
+  if (plattform) kopf += " @" + plattform;
+  return kopf;
+}
 
 function medienKat(kat) {
   const k = MEDIEN_KAT.find((x) => x[0] === kat);
@@ -2162,14 +2193,24 @@ function medienZeilen(text) {
   return raus;
 }
 
+// { titel, zusatz, plattform, fort } einer Watchliste-Zeile, wie
+// medien_zeile_teile am PC. Der @Marker gehoert weder zum Titel noch zum
+// Zusatz. fort kommt so zurueck, wie er in der Datei steht.
 function medienTeile(roh) {
   let kopf = roh, fort = null;
   const p = roh.indexOf("|");
   if (p >= 0) { kopf = roh.slice(0, p); fort = roh.slice(p + 1).trim(); }
   kopf = kopf.trim();
+  let plattform = "";
+  if (fort !== null) {
+    plattform = spielFortschrittTeile(fort).plattform;
+  } else {
+    const pm = kopf.match(MEDIEN_PLAT_RE);
+    if (pm) { plattform = pm[1].trim(); kopf = kopf.slice(0, pm.index).replace(/\s+$/, ""); }
+  }
   const m = kopf.match(MEDIEN_LINK_ZUSATZ_RE);
-  if (m) return { titel: m[1].trim(), zusatz: m[2].trim(), fort };
-  return { titel: kopf, zusatz: "", fort };
+  if (m) return { titel: m[1].trim(), zusatz: m[2].trim(), plattform, fort };
+  return { titel: kopf, zusatz: "", plattform, fort };
 }
 
 function medienIndex(zeilen, titel) {
@@ -2189,11 +2230,22 @@ function parseMedienAlle(texteJeKat) {
     for (const roh of medienZeilen(texteJeKat[key] || "")) {
       const t = medienTeile(roh);
       const e2 = { titel: t.titel, typ: label, kat: key, zusatz: t.zusatz,
-        fortschritt: t.fort || "" };
+        plattform: t.plattform, fortschritt: t.fort || "" };
       (t.fort !== null ? dabei : backlog).push(e2);
     }
   }
   return { dabei, backlog };
+}
+
+// Fertig-Datum ganz hinten in der Geschaut-Zeile, "[[Dexter]] 8/10 @2026-09-16".
+// Wie MEDIEN_FERTIG_RE und medien_fertig_teile am PC.
+const MEDIEN_FERTIG_RE = /\s*@(\d{4}-\d{2}-\d{2})\s*$/;
+
+function medienFertigTeile(note) {
+  note = String(note || "").trim();
+  const m = note.match(MEDIEN_FERTIG_RE);
+  if (!m) return { note, fertig: "" };
+  return { note: note.slice(0, m.index).trim(), fertig: m[1] };
 }
 
 function parseGeschautAlle(texteJeKat) {
@@ -2203,30 +2255,78 @@ function parseGeschautAlle(texteJeKat) {
     const eintraege = [];
     for (const s of medienZeilen(texteJeKat[key] || "")) {
       const m = s.match(MEDIEN_LINK_ZUSATZ_RE);
-      if (m) eintraege.push({ titel: m[1], note: m[2].trim() });
-      else eintraege.push({ titel: s, note: "" });
+      if (m) {
+        const f = medienFertigTeile(m[2]);
+        eintraege.push({ titel: m[1], note: f.note, fertig: f.fertig });
+      } else {
+        const f = medienFertigTeile(s);
+        eintraege.push({ titel: f.note, note: "", fertig: f.fertig });
+      }
     }
     raus.push({ key, label, mehrzahl, partizip, eintraege });
   }
   return raus;
 }
 
-function medienHinzufuegen(text, titel) {
+function medienHinzufuegen(text, titel, plattform) {
   titel = notizName(String(titel || "").replace(/\|/g, " ").trim());
   if (!titel) throw new Error("Kein Titel");
   if (titel.length > 200) throw new Error("Titel zu lang");
   const zeilen = zeilenAus(text);
   if (medienIndex(zeilen, titel) !== null) return { text: null, titel };
-  zeilen.push("[[" + titel + "]]");
+  zeilen.push(medienKopfBauen(titel, "", plattform || ""));
   return { text: joinZeilen(zeilen), titel };
 }
 
+// Offen -> Gerade dabei. Eine Plattform aus dem @Marker wandert hinter das
+// Pipe: "[[Titel]] @Netflix" wird "[[Titel]] | Netflix:".
 function medienAufstarten(text, titel) {
   const zeilen = zeilenAus(text);
   const i = medienIndex(zeilen, titel);
   if (i === null) throw new Error("Titel nicht in der Watchliste: " + titel);
-  if (!zeilen[i].includes("|")) zeilen[i] = rstripNl(zeilen[i]).replace(/\s+$/, "") + " | ";
+  if (!zeilen[i].includes("|")) {
+    let kopf = rstripNl(zeilen[i]).trim();
+    let plat = "";
+    const pm = kopf.match(MEDIEN_PLAT_RE);
+    if (pm) { plat = pm[1].trim(); kopf = kopf.slice(0, pm.index).replace(/\s+$/, ""); }
+    zeilen[i] = kopf + " | " + spielFortschrittBauen(plat, "");
+  }
   return { text: joinZeilen(zeilen), titel: medienTeile(zeilen[i]).titel };
+}
+
+// Gerade dabei -> Offen, Kehrseite von medienAufstarten wie medien_zurueck
+// am PC. Die Plattform bleibt als @Marker, der Stand faellt aus der Zeile
+// und kommt als "stand" zurueck, damit der Aufrufer ihn in die Notiz
+// schreiben kann ("Abgebrochen bei S2E3 (TT.MM.JJJJ)"). Schon offen: text null.
+function medienZurueck(text, titel) {
+  const zeilen = zeilenAus(text);
+  const i = medienIndex(zeilen, titel);
+  if (i === null) throw new Error("Titel nicht in der Watchliste: " + titel);
+  if (!zeilen[i].includes("|")) return { text: null, titel, stand: "" };
+  const t = medienTeile(zeilen[i].trim());
+  const stand = spielFortschrittTeile(t.fort).fortschritt;
+  const verlinkt = MEDIEN_LINK_ZUSATZ_RE.test(zeilen[i].split("|")[0].trim());
+  zeilen[i] = medienKopfBauen(t.titel, t.zusatz, t.plattform, verlinkt);
+  return { text: joinZeilen(zeilen), titel: t.titel, stand };
+}
+
+// Plattform setzen oder loeschen, offen (@Marker) wie laufend (vor dem
+// Doppelpunkt im Fortschritt-Feld), wie medien_plattform am PC.
+function medienPlattform(text, titel, plattform) {
+  const zeilen = zeilenAus(text);
+  const i = medienIndex(zeilen, titel);
+  if (i === null) throw new Error("Titel nicht in der Watchliste: " + titel);
+  plattform = plattformSauber(plattform);
+  const t = medienTeile(zeilen[i].trim());
+  const verlinkt = MEDIEN_LINK_ZUSATZ_RE.test(zeilen[i].split("|")[0].trim());
+  if (t.fort === null) {
+    zeilen[i] = medienKopfBauen(t.titel, t.zusatz, plattform, verlinkt);
+  } else {
+    const stand = spielFortschrittTeile(t.fort).fortschritt;
+    zeilen[i] = medienKopfBauen(t.titel, t.zusatz, "", verlinkt) + " | " +
+      spielFortschrittBauen(plattform, stand);
+  }
+  return { text: joinZeilen(zeilen), plattform };
 }
 
 function medienFortschritt(text, titel, wert) {
@@ -2258,11 +2358,16 @@ function medienBearbeiten(text, titelAlt, titel, zusatz, fortschritt) {
   }
   const neuZusatz = (zusatz !== undefined && zusatz !== null ? zusatz : t.zusatz)
     .replace(/\|/g, "/").trim();
-  const neuFort = (fortschritt === undefined || fortschritt === null)
+  let neuFort = (fortschritt === undefined || fortschritt === null)
     ? t.fort : String(fortschritt).replace(/\|/g, "/").trim();
-  let kopf = verlinkt ? "[[" + neuTitel + "]]" : neuTitel;
-  if (neuZusatz) kopf += " " + neuZusatz;
-  zeilen[i] = neuFort !== null ? kopf + " | " + neuFort : kopf;
+  // Der @Marker eines offenen Titels bleibt stehen. Wird der Titel hier
+  // gestartet (fort von null auf ''), wandert er hinter das Pipe.
+  if (neuFort === null) {
+    zeilen[i] = medienKopfBauen(neuTitel, neuZusatz, t.plattform, verlinkt);
+  } else {
+    if (t.fort === null && t.plattform && !neuFort) neuFort = spielFortschrittBauen(t.plattform, "");
+    zeilen[i] = medienKopfBauen(neuTitel, neuZusatz, "", verlinkt) + " | " + neuFort;
+  }
   return { text: joinZeilen(zeilen), titel: neuTitel };
 }
 
@@ -2274,7 +2379,9 @@ function medienNote(bewertung) {
   return " " + (Math.round(v * 100) / 100) + "/10";
 }
 
-function medienFertig(wlText, glText, titel, bewertung) {
+// datum ist JJJJ-MM-TT von heute, kommt als " @datum" ans Zeilenende wie
+// bei medien_fertig am PC. Ohne datum (alte Aufrufer, Tests) bleibt es weg.
+function medienFertig(wlText, glText, titel, bewertung, datum) {
   const zeilen = zeilenAus(wlText);
   const i = medienIndex(zeilen, titel);
   if (i === null) throw new Error("Titel nicht in der Watchliste: " + titel);
@@ -2282,7 +2389,7 @@ function medienFertig(wlText, glText, titel, bewertung) {
   zeilen.splice(i, 1);
   const note = medienNote(bewertung);
   const gz = zeilenAus(glText);
-  gz.push("[[" + t.titel + "]]" + note);
+  gz.push("[[" + t.titel + "]]" + note + (datum ? " @" + datum : ""));
   return { wlText: joinZeilen(zeilen), glText: joinZeilen(gz),
     nackt: t.titel, zusatz: t.zusatz, note };
 }
@@ -2746,7 +2853,7 @@ if (typeof module !== "undefined") {
     MEDIEN_KAT, MEDIEN_ORDNER, medienKat, notizName, medienZeilen,
     medienTeile, medienIndex, parseMedienAlle, parseGeschautAlle,
     medienHinzufuegen, medienAufstarten, medienFortschritt, medienBearbeiten,
-    medienNote, medienFertig, medienNotizErgaenzen,
+    medienNote, medienFertig, medienFertigTeile, medienNotizErgaenzen,
     spielFortschrittTeile, spielFortschrittBauen,
     KATEGORIEN, KAT_KEYS, KAT_LABEL, KAT_ALIAS, KOCH_PREFIX,
     QUEUE_GRUNDGERUEST, katKey, katKeys, dienstName, listenzeile,
@@ -2781,6 +2888,11 @@ function verlinke(s) {
 }
 const MONATE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
   "August", "September", "Oktober", "November", "Dezember"];
+// JJJJ-MM-TT als TT.MM.JJJJ, bei Unsinn unveraendert.
+function isoDe(s) {
+  const m = String(s || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? m[3] + "." + m[2] + "." + m[1] : String(s || "");
+}
 function kurzDatum(d) {
   const p = (x) => String(x).padStart(2, "0");
   return WOCHENTAGE[weekday(d)] + " " + p(d.getUTCDate()) + "." + p(d.getUTCMonth() + 1) + ".";
@@ -2809,7 +2921,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 23;
+const VERSION = 25;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -2987,7 +3099,7 @@ async function aktualisieren(leise) {
     const feste = ["Dashboard/Kalender.md", "Dashboard/Habits.md",
       "Dashboard/Schichten.md", "Dashboard/Gesundheit.md",
       "Dashboard/Sozial.md", "Dashboard/Training.md",
-      "Dashboard/Schlagworte.md", REZEPT_QUEUE_PFAD];
+      "Dashboard/Schlagworte.md", "Dashboard/Medien-Meta.md", REZEPT_QUEUE_PFAD];
     for (const k of MEDIEN_KAT) feste.push("Medien/" + k[2], "Medien/" + k[3]);
     await Promise.all(
       namen.map((n) => ladeDatei("Dashboard/" + n)).concat(feste.map(ladeDatei)));
@@ -3683,6 +3795,88 @@ function medSortChips(sek) {
     }).join("") + "</div>";
 }
 
+// ---------------------------------------------------- Cover und Infos
+// Medien-Meta.md pflegt der PC (Reiter Medien). Eine Zeile je Titel:
+// Titel | quelle | Jahr | Wer | Umfang | Genre | Note | Cover-Datei | Link.
+const META_FELDER = ["titel", "quelle", "jahr", "wer", "umfang", "genre", "note", "cover", "url"];
+let metaText = null, metaMap = new Map();
+function medienMetaMap() {
+  const t = text("Dashboard/Medien-Meta.md");
+  if (t === metaText) return metaMap;
+  metaText = t; metaMap = new Map();
+  let kat = null;
+  for (const z of String(t || "").split(/\r?\n/)) {
+    const sz = z.trim();
+    if (sz.startsWith("## ")) {
+      const name = sz.slice(3).trim().toLowerCase();
+      const k = MEDIEN_KAT.find((x) => x[4].toLowerCase() === name || x[1].toLowerCase() === name || x[0] === name);
+      kat = k ? k[0] : null;
+      continue;
+    }
+    if (!kat || !sz.startsWith("- ")) continue;
+    const teile = sz.slice(2).split("|").map((x) => x.trim());
+    if (!teile[0]) continue;
+    const o = {};
+    META_FELDER.forEach((f, i) => { o[f] = teile[i] || ""; });
+    metaMap.set(kat + "\u0000" + o.titel.toLowerCase(), o);
+  }
+  return metaMap;
+}
+function medienMeta(kat, titel) {
+  return medienMetaMap().get(kat + "\u0000" + String(titel || "").trim().toLowerCase()) || null;
+}
+
+const coverUrls = new Map();
+function coverLaden(pfad) {
+  if (coverUrls.has(pfad)) return coverUrls.get(pfad);
+  const p = (async () => {
+    const key = "https://cover.lokal/" + pfad;
+    let c = null, blob = null;
+    try { c = await caches.open("medcover-v1"); const hit = await c.match(key); if (hit) blob = await hit.blob(); } catch (e) { c = null; }
+    if (!blob) {
+      if (!cfg.token) return null;
+      const r = await fetch(API + "/repos/" + cfg.owner + "/" + cfg.repo + "/contents/" +
+        apiPfad(pfad) + "?ref=" + cfg.branch, { headers: {
+          "Authorization": "Bearer " + cfg.token,
+          "Accept": "application/vnd.github.raw+json",
+          "X-GitHub-Api-Version": "2022-11-28" } });
+      if (!r.ok) return null;
+      blob = await r.blob();
+      if (c) { try { await c.put(key, new Response(blob)); } catch (e) { /* egal */ } }
+    }
+    return URL.createObjectURL(blob);
+  })().then((u) => { if (!u) coverUrls.delete(pfad); return u; },
+    () => { coverUrls.delete(pfad); return null; });
+  coverUrls.set(pfad, p);
+  return p;
+}
+function coverNachladen() {
+  document.querySelectorAll("#blatt-medien .medcover[data-cover]:not([data-ok])").forEach((el) => {
+    el.dataset.ok = "1";
+    coverLaden(el.dataset.cover).then((u) => {
+      if (u) el.innerHTML = "<img alt=\"\" src=\"" + u + "\">";
+      else delete el.dataset.ok;
+    });
+  });
+}
+function medienCoverHtml(kat, titel, groesse) {
+  const m = medienMeta(kat, titel);
+  const kl = "medcover" + (groesse ? " " + groesse : "");
+  const anfang = esc(String(titel || "?").trim().charAt(0).toUpperCase());
+  if (!m || !m.cover) return "<span class=\"" + kl + "\">" + anfang + "</span>";
+  return "<span class=\"" + kl + "\" data-cover=\"" + esc("Medien/_Cover/" + m.cover) + "\">" + anfang + "</span>";
+}
+// Zwei kleine Zeilen: Jahr, Wer, Umfang und Genre, Note aus der Quelle.
+function medienInfoHtml(kat, titel) {
+  const m = medienMeta(kat, titel);
+  if (!m) return "";
+  const z1 = [m.jahr, m.wer, m.umfang].filter(Boolean).join(" · ");
+  const z2 = [m.genre, m.note ? "Quelle " + m.note : ""].filter(Boolean).join(" · ");
+  return (z1 ? "<div class=\"medinfo\">" + esc(z1) + "</div>" : "") +
+    (z2 ? "<div class=\"medinfo\">" + esc(z2) + "</div>" : "") +
+    (/^https?:\/\//.test(m.url) ? "<div class=\"medinfo\"><a href=\"" + esc(m.url) + "\" target=\"_blank\" rel=\"noopener\">Mehr Infos</a></div>" : "");
+}
+
 function medienNotizDetails(kat, titel) {
   const idx = "data-kat=\"" + esc(kat) + "\" data-titel=\"" + esc(titel) + "\"";
   return "<details class=\"mednotiz\"><summary data-aktion=\"medien-notiz\" " + idx + ">" +
@@ -3732,7 +3926,8 @@ function renderMedien() {
   if (medVorschlag) {
     b.push("<div style=\"margin:2px 0\"><strong>" + esc(medVorschlag.titel) + "</strong> " +
       "<span class=\"zusatz\">" + esc(medVorschlag.typ) + "</span>" +
-      (medVorschlag.zusatz ? "<div class=\"hilfetext\">" + esc(medVorschlag.zusatz) + "</div>" : "") + "</div>");
+      ((medVorschlag.plattform || medVorschlag.zusatz) ? "<div class=\"hilfetext\">" +
+        esc([medVorschlag.plattform ? "auf " + medVorschlag.plattform : "", medVorschlag.zusatz].filter(Boolean).join(" · ")) + "</div>" : "") + "</div>");
     b.push("<div class=\"zeile2\" style=\"margin-top:8px\">" +
       "<button class=\"knopf zweit\" data-aktion=\"medien-wuerfeln\">Nochmal</button>" +
       "<button class=\"knopf\" data-aktion=\"medien-start\" data-kat=\"" + esc(medVorschlag.kat) + "\" data-titel=\"" + esc(medVorschlag.titel) + "\">Starten</button></div>");
@@ -3755,7 +3950,9 @@ function renderMedien() {
   for (const d of dabei) {
     const idx = "data-kat=\"" + esc(d.kat) + "\" data-titel=\"" + esc(d.titel) + "\"";
     b.push("<div class=\"karte medkat med-" + esc(d.kat) + "\"><h3>" + esc(d.titel) + " <span class=\"zusatz\">" + esc(d.typ) + "</span></h3>");
-    if (d.zusatz) b.push("<div class=\"hilfetext\">" + esc(d.zusatz) + "</div>");
+    b.push("<div class=\"medzeile\" style=\"margin-bottom:8px\">" + medienCoverHtml(d.kat, d.titel, "gross") +
+      "<div class=\"medmitte\">" + medienInfoHtml(d.kat, d.titel) +
+      (d.zusatz ? "<div class=\"hilfetext\">" + esc(d.zusatz) + "</div>" : "") + "</div></div>");
     // Plattform und Fortschritt gelten seit kurzem fuer alle Kategorien,
     // nicht nur Spiele, genau wie am PC.
     const sp = spielFortschrittTeile(d.fortschritt);
@@ -3767,7 +3964,9 @@ function renderMedien() {
       "<button class=\"knopf zweit\" data-aktion=\"medien-merken\" " + idx + ">Merken</button>" +
       "<button class=\"knopf\" data-aktion=\"medien-fertig-frage\" " + idx + ">Fertig</button></div>");
     b.push("<button class=\"chip\" data-aktion=\"medien-bearbeiten-menue\" " + idx +
-      " data-zusatz=\"" + esc(d.zusatz) + "\" style=\"margin-top:8px\">Bearbeiten</button>");
+      " data-zusatz=\"" + esc(d.zusatz) + "\" style=\"margin-top:8px\">Bearbeiten</button>" +
+      "<button class=\"chip\" data-aktion=\"medien-zurueck\" " + idx +
+      " style=\"margin-top:8px;margin-left:6px\">Zurück zu offen</button>");
     b.push(medienNotizDetails(d.kat, d.titel));
     b.push("</div>");
   }
@@ -3782,8 +3981,15 @@ function renderMedien() {
     b.push(medSortChips("offen"));
   }
   for (const x of offen) {
-    b.push("<button class=\"medtitel\" data-aktion=\"medien-titel-menue\" data-kat=\"" + esc(x.kat) + "\" data-titel=\"" + esc(x.titel) + "\" data-zusatz=\"" + esc(x.zusatz) + "\">" + esc(x.titel) +
-      (x.zusatz ? "<span class=\"zu\">" + esc(x.zusatz) + "</span>" : "") + "</button>");
+    // Plattform steht hinten in der Zeile als @Marker und wird hier als
+    // eigene kleine Zeile gezeigt, damit man weiss, wo man schauen kann.
+    const zu = [x.plattform ? "auf " + x.plattform : "", x.zusatz].filter(Boolean).join(" · ");
+    const mi = medienMeta(x.kat, x.titel);
+    const zi = mi ? [mi.jahr, mi.wer].filter(Boolean).join(" · ") : "";
+    b.push("<button class=\"medtitel medzeile\" data-aktion=\"medien-titel-menue\" data-kat=\"" + esc(x.kat) + "\" data-titel=\"" + esc(x.titel) + "\" data-zusatz=\"" + esc(x.zusatz) + "\" data-plattform=\"" + esc(x.plattform) + "\">" +
+      medienCoverHtml(x.kat, x.titel, "klein") + "<span class=\"medmitte\">" + esc(x.titel) +
+      (zi ? "<span class=\"zu\">" + esc(zi) + "</span>" : "") +
+      (zu ? "<span class=\"zu\">" + esc(zu) + "</span>" : "") + "</span></button>");
   }
   b.push("</div>");
 
@@ -3797,8 +4003,11 @@ function renderMedien() {
     // unten klappt den Rest auf, die Sortierung gilt fuer alles.
     const gezeigt = medDurchAlle ? alle : alle.slice(0, 12);
     for (const x of gezeigt) {
-      b.push("<div class=\"durchzeile\"><div class=\"kopf\"><span>" + esc(x.titel) + "</span>" +
-        (x.note ? "<span class=\"medpill\">" + esc(x.note) + "</span>" : "") + "</div>" +
+      b.push("<div class=\"durchzeile\"><div class=\"medzeile\">" + medienCoverHtml(fertig.key, x.titel) +
+        "<div class=\"medmitte\"><div class=\"kopf\"><span>" + esc(x.titel) + "</span><span class=\"medrechts\">" +
+        (x.note ? "<span class=\"medpill\">" + esc(x.note) + "</span>" : "") + "</span></div>" +
+        (x.fertig ? "<div class=\"medfertig\">" + esc(fertig.partizip) + " am " + esc(isoDe(x.fertig)) + "</div>" : "") +
+        medienInfoHtml(fertig.key, x.titel) + "</div></div>" +
         medienNotizDetails(fertig.key, x.titel) + "</div>");
     }
     if (alle.length > 12) {
@@ -3809,6 +4018,7 @@ function renderMedien() {
   }
 
   $("#blatt-medien").innerHTML = b.join("");
+  coverNachladen();
 }
 
 function medienFertigSheet(kat, titel) {
@@ -3825,14 +4035,20 @@ function medienFertigSheet(kat, titel) {
 // Titel und Zusatz sind immer editierbar, Starten und Schon fertig gibt es
 // nur fuer noch offene Titel, dabei-Eintraege haben dafuer schon eigene
 // Knoepfe auf der Karte.
-function medienBearbeitenSheet(kat, titel, zusatz, dabei) {
+function medienBearbeitenSheet(kat, titel, zusatz, dabei, plattform) {
   const idx = "data-kat=\"" + esc(kat) + "\" data-titel=\"" + esc(titel) + "\"";
   let b = "<div class=\"griff\"></div><h2>Bearbeiten</h2>" +
     "<label class=\"feld\">Titel</label>" +
     "<input type=\"text\" id=\"med-b-titel\" value=\"" + esc(titel) + "\">" +
     "<label class=\"feld\">Zusatz</label>" +
-    "<input type=\"text\" id=\"med-b-zusatz\" value=\"" + esc(zusatz || "") + "\">" +
-    "<button class=\"knopf\" data-aktion=\"medien-bearbeiten\" " + idx + " style=\"margin-top:8px\">Speichern</button>";
+    "<input type=\"text\" id=\"med-b-zusatz\" value=\"" + esc(zusatz || "") + "\">";
+  // Bei laufenden Titeln sitzt die Plattform in der Karte selbst, hier nur
+  // fuer offene, dort landet sie als @Marker hinten in der Zeile.
+  if (!dabei) {
+    b += "<label class=\"feld\">Plattform (wo schauen)</label>" +
+      "<input type=\"text\" id=\"med-b-plat\" value=\"" + esc(plattform || "") + "\" placeholder=\"z.B. Netflix\">";
+  }
+  b += "<button class=\"knopf\" data-aktion=\"medien-bearbeiten\" " + idx + " style=\"margin-top:8px\">Speichern</button>";
   if (!dabei) {
     b += "<button class=\"aktion\" data-aktion=\"medien-start\" " + idx + " style=\"margin-top:8px\">Starten<small>wandert zu Gerade dabei</small></button>" +
       "<button class=\"aktion\" data-aktion=\"medien-fertig-frage\" " + idx + ">Schon fertig<small>direkt bewerten</small></button>";
@@ -4525,7 +4741,7 @@ const AKTIONEN = {
     await mitToast(async () => {
       const fund = await medienNotizFinden(kat, titel);
       await transaktion([wl, gl, fund.pfad], (texte) => {
-        const r = medienFertig(texte[wl], texte[gl], titel, bew);
+        const r = medienFertig(texte[wl], texte[gl], titel, bew, iso(heute()));
         const out = { [wl]: r.wlText, [gl]: r.glText };
         const neu = [];
         if (r.zusatz) neu.push(r.zusatz);
@@ -4575,18 +4791,45 @@ const AKTIONEN = {
     medVorschlag = topf[Math.floor(Math.random() * topf.length)];
     renderMedien();
   },
-  "medien-titel-menue": (el) => medienBearbeitenSheet(el.dataset.kat, el.dataset.titel, el.dataset.zusatz, false),
+  "medien-titel-menue": (el) => medienBearbeitenSheet(el.dataset.kat, el.dataset.titel, el.dataset.zusatz, false, el.dataset.plattform),
   "medien-bearbeiten-menue": (el) => medienBearbeitenSheet(el.dataset.kat, el.dataset.titel, el.dataset.zusatz, true),
   "medien-bearbeiten": async (el) => {
     const { kat, titel } = el.dataset;
     const neuTitel = $("#med-b-titel").value.trim();
     const neuZusatz = $("#med-b-zusatz").value.trim();
     if (!neuTitel) { toast("Titel fehlt", true); return; }
+    const platFeld = $("#med-b-plat");
     sheetZu();
     const wl = "Medien/" + medienKat(kat)[2];
-    await mitToast(() => transaktion([wl],
-      (texte) => ({ [wl]: medienBearbeiten(texte[wl], titel, neuTitel, neuZusatz).text }),
-      "Mobil: " + titel + " bearbeitet"), "Gespeichert");
+    await mitToast(() => transaktion([wl], (texte) => {
+      const r = medienBearbeiten(texte[wl], titel, neuTitel, neuZusatz);
+      // Plattform nur bei offenen Titeln ueber das Sheet, laufende haben
+      // ihr Feld in der Karte.
+      if (!platFeld) return { [wl]: r.text };
+      return { [wl]: medienPlattform(r.text, r.titel, platFeld.value.trim()).text };
+    }, "Mobil: " + titel + " bearbeitet"), "Gespeichert");
+  },
+  "medien-zurueck": async (el) => {
+    // Gerade dabei -> offen. Plattform bleibt, der Stand geht in die Notiz.
+    const { kat, titel } = el.dataset;
+    const k = medienKat(kat);
+    const wl = "Medien/" + k[2];
+    await mitToast(async () => {
+      const fund = await medienNotizFinden(kat, titel);
+      await transaktion([wl, fund.pfad], (texte) => {
+        const r = medienZurueck(texte[wl], titel);
+        if (r.text === null) return {};
+        const out = { [wl]: r.text };
+        if (r.stand) {
+          // Gleiche Bytes wie medien_zurueck am PC: TT.MM.JJJJ.
+          const h = heute(), pad = (x) => String(x).padStart(2, "0");
+          const dat = pad(h.getUTCDate()) + "." + pad(h.getUTCMonth() + 1) + "." + h.getUTCFullYear();
+          const n = medienNotizErgaenzen(texte[fund.pfad], ["Abgebrochen bei " + r.stand + " (" + dat + ")"]);
+          if (n !== null) out[fund.pfad] = n;
+        }
+        return out;
+      }, "Mobil: " + titel + " zurück zu offen");
+    }, titel + " ist wieder offen");
   },
   "medien-sort": (el) => {
     const sek = el.dataset.sek, key = el.dataset.key;
