@@ -837,11 +837,24 @@ function todoArchivieren(todosText, erledigtText, datei, raw, wieder) {
   return { todosText: neuTodos, erledigtText: neuErledigt, neu, wiederText };
 }
 
+// Zieldatum fuers Verschieben: Schluessel aus WIEDER oder JJJJ-MM-TT.
+// Gegenstueck zu schiebe_ziel() in generate.py.
+function schiebeZiel(wann) {
+  if (wann in WIEDER) return WIEDER[wann][1]();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(wann || "")) {
+    const d = parseDateIso(wann);
+    if (d && iso(d) === wann) return d;
+  }
+  throw new Error("Unbekanntes Ziel: " + wann);
+}
+function schiebeText(wann) {
+  return wann in WIEDER ? WIEDER[wann][0] : isoDe(wann);
+}
+
 // Setzt nur das Faelligkeitsdatum neu. Gibt {text, zeile} zurueck.
 function todoVerschieben(text, raw, wann) {
-  if (!(wann in VERSCHIEBEN)) throw new Error("Unbekanntes Ziel: " + wann);
+  const neues = iso(schiebeZiel(wann));
   const zeilen = zeilenAus(text);
-  const neues = iso(VERSCHIEBEN[wann][1]());
   for (let i = 0; i < zeilen.length; i++) {
     if (rstripNl(zeilen[i]) !== raw) continue;
     const m = zeilen[i].match(TODO_RE);
@@ -2833,7 +2846,7 @@ if (typeof module !== "undefined") {
     faelligText, WIEDER, VERSCHIEBEN, stripChars, rstripNl, joinZeilen,
     datenzeilen, abschnitte, TODO_RE, H2_RE, KAL_RE, listenName, todoClean,
     parseTodos, todoListen, todoZeile, sektionAnlegen, todoAnlegen,
-    todoArchivieren, todoVerschieben, todoUmschalten, parseErledigt,
+    todoArchivieren, todoVerschieben, schiebeZiel, todoUmschalten, parseErledigt,
     parseKalender, kalenderAnlegen, terminLoeschen, terminVerschieben,
     parseHabits, streak, habitSetzen, parseSchichten, schichtAm,
     gesFelderLesen, gesZeileBauen, gesundheitLog, gesundheitSupp,
@@ -4326,11 +4339,13 @@ function todoMenue(datei, raw) {
   if (!t) { toast("Todo nicht mehr da, lade neu", true); aktualisieren(true); return; }
   sheetOeffnen("<div class=\"griff\"></div><h2>" + esc(t.text) + "</h2>" +
     "<button class=\"aktion\" data-aktion=\"todo-erledigt\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wieder=\"\">Erledigt<small>wandert ins Archiv</small></button>" +
-    "<button class=\"aktion\" data-aktion=\"todo-erledigt\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wieder=\"morgen\">Erledigt, wieder morgen</button>" +
-    "<button class=\"aktion\" data-aktion=\"todo-erledigt\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wieder=\"woche\">Erledigt, wieder nächste Woche</button>" +
-    "<button class=\"aktion\" data-aktion=\"todo-erledigt\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wieder=\"monat\">Erledigt, wieder nächsten Monat</button>" +
     "<button class=\"aktion\" data-aktion=\"todo-schieben\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wann=\"morgen\">Auf morgen verschieben</button>" +
     "<button class=\"aktion\" data-aktion=\"todo-schieben\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wann=\"woche\">Auf nächste Woche verschieben</button>" +
+    "<button class=\"aktion\" data-aktion=\"todo-schieben\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wann=\"monat\">Auf nächsten Monat verschieben</button>" +
+    "<button class=\"aktion\" data-aktion=\"todo-schieben\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\" data-wann=\"jahr\">Auf nächstes Jahr verschieben</button>" +
+    "<label class=\"feld\">Oder auf ein bestimmtes Datum</label>" +
+    "<div class=\"zeile2\"><div><input type=\"date\" id=\"ts-datum\" value=\"" + iso(addDays(t.due || heute(), 1)) + "\"></div>" +
+    "<div><button class=\"aktion\" data-aktion=\"todo-datum\" data-datei=\"" + esc(datei) + "\" data-raw=\"" + esc(raw) + "\">Verschieben</button></div></div>" +
     "<button class=\"aktion\" data-aktion=\"sheet-zu\">Abbrechen</button>");
 }
 
@@ -4458,8 +4473,15 @@ const AKTIONEN = {
     sheetZu();
     await mitToast(() => transaktion(["Dashboard/" + datei],
       (texte) => ({ ["Dashboard/" + datei]: todoVerschieben(texte["Dashboard/" + datei], raw, wann).text }),
-      "Mobil: Todo verschoben auf " + VERSCHIEBEN[wann][0]),
-    "Verschoben auf " + VERSCHIEBEN[wann][0]);
+      "Mobil: Todo verschoben auf " + schiebeText(wann)),
+    "Verschoben auf " + schiebeText(wann));
+  },
+  "todo-datum": async (el) => {
+    const f = $("#ts-datum");
+    const wann = f ? f.value : "";
+    try { schiebeZiel(wann); } catch (e) { toast("Bitte erst ein Datum wählen", true); return; }
+    el.dataset.wann = wann;
+    await AKTIONEN["todo-schieben"](el);
   },
   "fab": () => neuesTodoSheet(),
   "todo-anlegen": async () => {
