@@ -399,6 +399,7 @@ nav.tabs button.aktiv { color: var(--akzent); }
 
 .standzeile { text-align: center; color: var(--leise); font-size: 12px; margin: 4px 0 10px; }
 .hilfetext { color: var(--leise); font-size: 13.5px; }
+.medfiltweg { display: none !important; }
 .hilfetext code { background: var(--karte2); padding: 1px 5px; border-radius: 5px; }
 
 .tbedit { min-height: 46vh; font-size: 15px; line-height: 1.5; }
@@ -2934,7 +2935,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 25;
+const VERSION = 26;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -3238,7 +3239,19 @@ function renderHeute() {
   faellig.sort((x, y) => (x.due - y.due) || (PRIO_RANK[x.prio] - PRIO_RANK[y.prio]));
   b.push("<div class=\"karte\"><h3>Fällig <span class=\"zusatz\">" + faellig.length + " offen</span></h3>");
   if (faellig.length) b.push(faellig.map((t) => todoZeileHtml(t, true)).join(""));
-  else b.push("<div class=\"leer\">Nichts fällig. Prag wartet.</div>");
+  else {
+    // Nie leer: Wenn heute nichts ansteht, die naechsten 5 Todos zeigen,
+    // zuerst die mit spaeterem Datum, danach undatierte nach Prio.
+    const spaeter = todos.filter((t) => t.due && tageDiff(t.due, h) > 0)
+      .sort((x, y) => (x.due - y.due) || (PRIO_RANK[x.prio] - PRIO_RANK[y.prio]));
+    const ohne = todos.filter((t) => !t.due)
+      .sort((x, y) => PRIO_RANK[x.prio] - PRIO_RANK[y.prio]);
+    const naechste = spaeter.concat(ohne).slice(0, 5);
+    if (naechste.length) {
+      b.push("<div class=\"leisezeile\">Heute nichts fällig. Als Nächstes:</div>");
+      b.push(naechste.map((t) => todoZeileHtml(t, true)).join(""));
+    } else b.push("<div class=\"leer\">Keine offenen Todos.</div>");
+  }
   b.push("</div>");
 
   // Habits
@@ -3750,6 +3763,7 @@ async function medienNotizFinden(kat, titel) {
 let medSort = {};
 try { medSort = JSON.parse(localStorage.getItem("medsort") || "{}") || {}; } catch (e) { medSort = {}; }
 let medDurchAlle = false;   // Durch zeigt erst 12, ein Chip klappt alles auf
+let medSuche = "";         // Text in der Leiste, filtert die drei Listen
 const MEDIEN_SORT = [["zeit", "Hinzugefügt"], ["az", "Titel"], ["bew", "Bewertung"]];
 const MEDIEN_BEW_RE = /(\d+(?:[.,]\d+)?)\s*\/\s*10\b/;
 
@@ -3865,6 +3879,7 @@ function coverLaden(pfad) {
 }
 function coverNachladen() {
   document.querySelectorAll("#blatt-medien .medcover[data-cover]:not([data-ok])").forEach((el) => {
+    if (el.closest(".medfiltweg")) return;   // Ausgeblendetes spart die Anfrage
     el.dataset.ok = "1";
     coverLaden(el.dataset.cover).then((u) => {
       if (u) el.innerHTML = "<img alt=\"\" src=\"" + u + "\">";
@@ -3902,6 +3917,7 @@ function renderMedien() {
   const durch = parseGeschautAlle(medienGlTexte());
   const kat = medienKat(medKat);
   const b = [];
+  const fokus = document.activeElement && document.activeElement.id === "med-neutitel";
 
   // Untertabs ganz oben. Gefiltert wird nur die Anzeige, geschrieben wird
   // weiter in dieselben Dateien wie am PC.
@@ -3913,21 +3929,19 @@ function renderMedien() {
       "<span class=\"strk\">" + n + "</span></button>";
   }).join("") + "</div>");
 
-  // Neuer Eintrag steht ganz oben, das ist der haeufigste Griff. Die
-  // Kategorie ist auf den aktiven Untertab vorbelegt.
-  b.push("<div class=\"karte\"><h3>Neu hinzufügen</h3>" +
-    "<label class=\"feld\">Titel</label><input type=\"text\" id=\"med-neutitel\">" +
+  // Suchen und Anlegen in einer Leiste: Tippen filtert (medFiltern), Enter
+  // oder der Knopf legen an. Die Kategorie ist auf den aktiven Untertab
+  // vorbelegt.
+  b.push("<div class=\"karte\"><h3>Suchen und hinzufügen</h3>" +
+    "<input type=\"text\" id=\"med-neutitel\" autocomplete=\"off\" " +
+    "placeholder=\"Titel suchen oder hinzufügen...\" value=\"" + esc(medSuche) + "\">" +
     "<label class=\"feld\">Kategorie</label><select id=\"med-neukat\">" +
     MEDIEN_KAT.map((k) => "<option value=\"" + k[0] + "\"" +
       (k[0] === medKat ? " selected" : "") + ">" + k[1] + "</option>").join("") +
     "</select><button class=\"knopf\" data-aktion=\"medien-add\" style=\"margin-top:8px\">Hinzufügen</button></div>");
 
   // Was als naechstes, auf Wunsch nur aus einer Kategorie, genau wie am PC.
-  const topf = medWuerfelKat ? m.backlog.filter((x) => x.kat === medWuerfelKat) : m.backlog;
-  b.push("<div class=\"karte\"><h3>Was als nächstes <span class=\"zusatz\">" +
-    topf.length + " im Topf</span></h3>" +
-    "<div class=\"hilfetext\">Gegen das YouTube-Loch. Zieht zufällig aus deinen " +
-    "offenen Titeln, auf Wunsch nur aus einer Kategorie.</div>");
+  b.push("<div class=\"karte\" id=\"med-wuerfelkarte\"><h3>Was als nächstes</h3>");
   b.push("<label class=\"feld\" style=\"margin-top:8px\">Kategorie</label>" +
     "<select id=\"med-wkat\"><option value=\"\"" + (medWuerfelKat ? "" : " selected") +
     ">Alles (" + m.backlog.length + ")</option>" +
@@ -3952,17 +3966,18 @@ function renderMedien() {
   // pos ist die Stelle in der Datei, danach sortiert "Hinzugefügt".
   const dabei = medSortiere("dabei", m.dabei.filter((d) => d.kat === medKat)
     .map((d, i) => Object.assign({ pos: i }, d)));
-  b.push("<div class=\"karte\"><h3>Gerade dabei <span class=\"zusatz\">" +
-    esc(kat[4]) + ", " + dabei.length + "</span></h3>");
+  b.push("<div class=\"karte\"><h3>Gerade dabei <span class=\"zusatz\" data-medzahl=\"dabei\" data-vor=\"" +
+    esc(kat[4]) + ", \">" + esc(kat[4]) + ", " + dabei.length + "</span></h3>");
   if (!dabei.length) {
-    b.push("<div class=\"hilfetext\">Nichts läuft gerade. Würfel oben einen Vorschlag oder starte einen offenen Titel.</div>");
-  } else if (dabei.length > 1) {
-    b.push(medSortChips("dabei"));
+    b.push("<div class=\"hilfetext\">Leer</div>");
+  } else {
+    if (dabei.length > 1) b.push(medSortChips("dabei"));
+    b.push(medKeinTreffer("dabei"));
   }
   b.push("</div>");
   for (const d of dabei) {
     const idx = "data-kat=\"" + esc(d.kat) + "\" data-titel=\"" + esc(d.titel) + "\"";
-    b.push("<div class=\"karte medkat med-" + esc(d.kat) + "\"><h3>" + esc(d.titel) + " <span class=\"zusatz\">" + esc(d.typ) + "</span></h3>");
+    b.push("<div class=\"karte medkat med-" + esc(d.kat) + "\" data-medsek=\"dabei\" data-medtitel=\"" + esc(d.titel) + "\"><h3>" + esc(d.titel) + " <span class=\"zusatz\">" + esc(d.typ) + "</span></h3>");
     b.push("<div class=\"medzeile\" style=\"margin-bottom:8px\">" + medienCoverHtml(d.kat, d.titel, "gross") +
       "<div class=\"medmitte\">" + medienInfoHtml(d.kat, d.titel) +
       (d.zusatz ? "<div class=\"hilfetext\">" + esc(d.zusatz) + "</div>" : "") + "</div></div>");
@@ -3987,11 +4002,12 @@ function renderMedien() {
   const offen = medSortiere("offen", m.backlog.filter((x) => x.kat === medKat)
     .map((x, i) => Object.assign({ pos: i }, x)));
   b.push("<div class=\"karte medkat med-" + esc(medKat) + "\"><h3>" +
-    esc(kat[4]) + " offen <span class=\"zusatz\">" + offen.length + "</span></h3>");
+    esc(kat[4]) + " offen <span class=\"zusatz\" data-medzahl=\"offen\">" + offen.length + "</span></h3>");
   if (!offen.length) {
     b.push("<div class=\"hilfetext\">Nichts offen. Trag oben etwas ein.</div>");
-  } else if (offen.length > 1) {
-    b.push(medSortChips("offen"));
+  } else {
+    if (offen.length > 1) b.push(medSortChips("offen"));
+    b.push(medKeinTreffer("offen"));
   }
   for (const x of offen) {
     // Plattform steht hinten in der Zeile als @Marker und wird hier als
@@ -3999,7 +4015,7 @@ function renderMedien() {
     const zu = [x.plattform ? "auf " + x.plattform : "", x.zusatz].filter(Boolean).join(" · ");
     const mi = medienMeta(x.kat, x.titel);
     const zi = mi ? [mi.jahr, mi.wer].filter(Boolean).join(" · ") : "";
-    b.push("<button class=\"medtitel medzeile\" data-aktion=\"medien-titel-menue\" data-kat=\"" + esc(x.kat) + "\" data-titel=\"" + esc(x.titel) + "\" data-zusatz=\"" + esc(x.zusatz) + "\" data-plattform=\"" + esc(x.plattform) + "\">" +
+    b.push("<button class=\"medtitel medzeile\" data-medsek=\"offen\" data-medtitel=\"" + esc(x.titel) + "\" data-aktion=\"medien-titel-menue\" data-kat=\"" + esc(x.kat) + "\" data-titel=\"" + esc(x.titel) + "\" data-zusatz=\"" + esc(x.zusatz) + "\" data-plattform=\"" + esc(x.plattform) + "\">" +
       medienCoverHtml(x.kat, x.titel, "klein") + "<span class=\"medmitte\">" + esc(x.titel) +
       (zi ? "<span class=\"zu\">" + esc(zi) + "</span>" : "") +
       (zu ? "<span class=\"zu\">" + esc(zu) + "</span>" : "") + "</span></button>");
@@ -4008,15 +4024,19 @@ function renderMedien() {
 
   const fertig = durch.filter((l) => l.key === medKat)[0];
   if (fertig && fertig.eintraege.length) {
-    b.push("<div class=\"karte medkat med-" + esc(medKat) + "\"><h3>Durch <span class=\"zusatz\">" +
+    b.push("<div class=\"karte medkat med-" + esc(medKat) + "\"><h3>Durch <span class=\"zusatz\" data-medzahl=\"durch\" data-nach=\" " + esc(fertig.partizip) + "\">" +
       fertig.eintraege.length + " " + esc(fertig.partizip) + "</span></h3>");
     const alle = medSortiere("durch", fertig.eintraege.map((x, i) => Object.assign({ pos: i }, x)));
     if (alle.length > 1) b.push(medSortChips("durch"));
+    b.push(medKeinTreffer("durch"));
     // Erst 12, sonst wird die Karte bei langen Listen endlos. Ein Chip
-    // unten klappt den Rest auf, die Sortierung gilt fuer alles.
-    const gezeigt = medDurchAlle ? alle : alle.slice(0, 12);
-    for (const x of gezeigt) {
-      b.push("<div class=\"durchzeile\"><div class=\"medzeile\">" + medienCoverHtml(fertig.key, x.titel) +
+    // unten klappt den Rest auf, die Sortierung gilt fuer alles. Im DOM steht
+    // trotzdem alles, sonst findet der Filter den Rest nicht; medFiltern
+    // blendet ihn aus (data-medrest).
+    for (let i = 0; i < alle.length; i++) {
+      const x = alle[i];
+      b.push("<div class=\"durchzeile\" data-medsek=\"durch\" data-medtitel=\"" + esc(x.titel) + "\"" +
+        (!medDurchAlle && i >= 12 ? " data-medrest=\"1\"" : "") + "><div class=\"medzeile\">" + medienCoverHtml(fertig.key, x.titel) +
         "<div class=\"medmitte\"><div class=\"kopf\"><span>" + esc(x.titel) + "</span><span class=\"medrechts\">" +
         (x.note ? "<span class=\"medpill\">" + esc(x.note) + "</span>" : "") + "</span></div>" +
         (x.fertig ? "<div class=\"medfertig\">" + esc(fertig.partizip) + " am " + esc(isoDe(x.fertig)) + "</div>" : "") +
@@ -4024,14 +4044,65 @@ function renderMedien() {
         medienNotizDetails(fertig.key, x.titel) + "</div>");
     }
     if (alle.length > 12) {
-      b.push("<button class=\"chip leise\" data-aktion=\"medien-durch-alle\" style=\"margin-top:8px\">" +
+      b.push("<button class=\"chip leise\" id=\"med-durchchip\" data-aktion=\"medien-durch-alle\" style=\"margin-top:8px\">" +
         (medDurchAlle ? "Weniger anzeigen" : "Alle anzeigen (" + (alle.length - 12) + " weitere)") + "</button>");
     }
     b.push("</div>");
   }
 
   $("#blatt-medien").innerHTML = b.join("");
+  const leiste = $("#med-neutitel");
+  let coverZeit = null;
+  leiste.addEventListener("input", () => {
+    medSuche = leiste.value;
+    medFiltern();
+    clearTimeout(coverZeit);
+    coverZeit = setTimeout(coverNachladen, 300);
+  });
+  leiste.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Enter") return;
+    ev.preventDefault();
+    AKTIONEN["medien-add"]();
+  });
+  // Ein Neuzeichnen beim Tippen (Abgleich im Hintergrund) nimmt die Tastatur nicht weg.
+  if (fokus) {
+    leiste.focus();
+    leiste.setSelectionRange(leiste.value.length, leiste.value.length);
+  }
+  medFiltern();
   coverNachladen();
+}
+
+function medKeinTreffer(sek) {
+  return "<div class=\"hilfetext\" data-medleer=\"" + sek + "\" hidden>Kein Treffer.</div>";
+}
+function medFilterText(s) {
+  return String(s || "").normalize("NFD").replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
+}
+// Blendet aus statt neu zu rendern, sonst verliert die Leiste den Fokus.
+// Im Filter zaehlen auch die Titel hinter "Alle anzeigen".
+function medFiltern() {
+  const q = medFilterText(medSuche);
+  const wurzel = $("#blatt-medien");
+  const treffer = { dabei: 0, offen: 0, durch: 0 };
+  const alle = { dabei: 0, offen: 0, durch: 0 };
+  wurzel.querySelectorAll("[data-medsek]").forEach((el) => {
+    const passt = !q || medFilterText(el.dataset.medtitel).includes(q);
+    alle[el.dataset.medsek]++;
+    if (passt) treffer[el.dataset.medsek]++;
+    el.classList.toggle("medfiltweg", !passt || (!q && el.dataset.medrest === "1"));
+  });
+  wurzel.querySelectorAll("[data-medzahl]").forEach((el) => {
+    const sek = el.dataset.medzahl;
+    el.textContent = (el.dataset.vor || "") + (q ? treffer[sek] : alle[sek]) + (el.dataset.nach || "");
+  });
+  wurzel.querySelectorAll("[data-medleer]").forEach((el) => {
+    el.hidden = !(q && !treffer[el.dataset.medleer]);
+  });
+  const chip = $("#med-durchchip");
+  if (chip) chip.classList.toggle("medfiltweg", !!q);
+  // Der Wuerfel schiebt die Treffer sonst hinter die Tastatur.
+  $("#med-wuerfelkarte").classList.toggle("medfiltweg", !!q);
 }
 
 function medienFertigSheet(kat, titel) {
@@ -4797,6 +4868,7 @@ const AKTIONEN = {
         if (r.text === null) throw new Error("Steht schon auf der Watchliste");
         return { [wl]: r.text };
       }, "Mobil: " + titel + " auf die Watchliste");
+      medSuche = "";
       const fund = await medienNotizFinden(kat, neu);
       if (!fund.eintrag.sha) {
         try { await putDatei(fund.pfad, "", "Mobil: Notiz " + neu + " angelegt"); }
