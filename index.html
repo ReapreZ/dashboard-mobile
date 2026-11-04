@@ -2945,7 +2945,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 28;
+const VERSION = 29;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -3729,7 +3729,7 @@ function trainingTagSheet() {
 
 let medVorschlag = null;   // aktueller Wuerfel-Vorschlag
 let medWuerfelKat = "";    // Kategorie, aus der gewuerfelt wird
-let medWuerfelFilter = { laenge: "", genre: "", plat: "", note: "" };
+let medWuerfelFilter = { status: "offen", genre: "", plat: "", note: "" };
 
 // Aktiver Untertab. Der Reiter zeigt immer genau eine Kategorie, sonst
 // scrollt man am Handy ewig an fremden Listen vorbei. Die Wahl ueberlebt
@@ -3956,21 +3956,17 @@ function renderMedien() {
   // Was als naechstes, auf Wunsch nur aus einer Kategorie, genau wie am PC.
   b.push("<div class=\"karte\" id=\"med-wuerfelkarte\"><h3>Was als nächstes</h3>");
   b.push("<label class=\"feld\" style=\"margin-top:8px\">Kategorie</label>" +
-    "<select id=\"med-wkat\"><option value=\"\"" + (medWuerfelKat ? "" : " selected") +
-    ">Alles (" + m.backlog.length + ")</option>" +
-    MEDIEN_KAT.map((k) => {
-      const n = m.backlog.filter((x) => x.kat === k[0]).length;
-      return "<option value=\"" + k[0] + "\"" + (medWuerfelKat === k[0] ? " selected" : "") +
-        (n ? "" : " disabled") + ">" + k[4] + " (" + n + ")</option>";
-    }).join("") + "</select>" + medWuerfelFilterHtml(m.backlog));
+    "<select id=\"med-wkat\"><option value=\"\"" + (medWuerfelKat ? "" : " selected") + ">Alles</option>" +
+    MEDIEN_KAT.map((k) => "<option value=\"" + k[0] + "\"" + (medWuerfelKat === k[0] ? " selected" : "") +
+      ">" + k[4] + "</option>").join("") + "</select>" + medWuerfelFilterHtml(m.backlog, durch));
   if (medVorschlag) {
     b.push("<div style=\"margin:2px 0\"><strong>" + esc(medVorschlag.titel) + "</strong> " +
       "<span class=\"zusatz\">" + esc(medVorschlag.typ) + "</span>" +
-      ((medVorschlag.plattform || medVorschlag.zusatz) ? "<div class=\"hilfetext\">" +
-        esc([medVorschlag.plattform ? "auf " + medVorschlag.plattform : "", medVorschlag.zusatz].filter(Boolean).join(" · ")) + "</div>" : "") + "</div>");
+      ((medVorschlag.plattform || medVorschlag.durch || medVorschlag.zusatz) ? "<div class=\"hilfetext\">" +
+        esc([medVorschlag.plattform ? "auf " + medVorschlag.plattform : "", medVorschlag.durch ? "schon durch" : "", medVorschlag.zusatz].filter(Boolean).join(" · ")) + "</div>" : "") + "</div>");
     b.push("<div class=\"zeile2\" style=\"margin-top:8px\">" +
       "<button class=\"knopf zweit\" data-aktion=\"medien-wuerfeln\">Nochmal</button>" +
-      "<button class=\"knopf\" data-aktion=\"medien-start\" data-kat=\"" + esc(medVorschlag.kat) + "\" data-titel=\"" + esc(medVorschlag.titel) + "\">Starten</button></div>");
+      (medVorschlag.durch ? "" : "<button class=\"knopf\" data-aktion=\"medien-start\" data-kat=\"" + esc(medVorschlag.kat) + "\" data-titel=\"" + esc(medVorschlag.titel) + "\">Starten</button>") + "</div>");
   } else {
     b.push("<button class=\"knopf\" data-aktion=\"medien-wuerfeln\">Würfeln</button>");
   }
@@ -4067,12 +4063,17 @@ function renderMedien() {
   $("#blatt-medien").innerHTML = b.join("");
   $("#med-wkat").addEventListener("change", (ev) => {
     medWuerfelKat = ev.target.value;
-    medWuerfelFilter = { laenge: "", genre: "", plat: "", note: "" };
+    medWuerfelFilter = { status: "offen", genre: "", plat: "", note: "" };
     medVorschlag = null;
     renderMedien();
   });
   document.querySelectorAll(".med-wfilter").forEach((s) => {
-    s.addEventListener("change", () => { medWuerfelFilter[s.dataset.feld] = s.value; });
+    s.addEventListener("change", () => {
+      medWuerfelFilter[s.dataset.feld] = s.value;
+      if (s.dataset.feld !== "status") return;
+      medVorschlag = null;
+      renderMedien();   // Genre und Plattform haengen an der Auswahl
+    });
   });
   const leiste = $("#med-neutitel");
   let coverZeit = null;
@@ -4096,52 +4097,62 @@ function renderMedien() {
   coverNachladen();
 }
 
-// Dieselben Filter und Grenzen wie am PC. Laenge, Genre und Note kommen aus
-// Medien-Meta.md, ein Titel ohne die gefragte Angabe faellt raus.
-const MED_LAENGEN = {
-  film: [["-90", "Bis 90 Min"], ["-120", "Bis 2 Std"], ["121-", "Über 2 Std"]],
-  serie: [["-12", "Bis 12 Folgen"], ["-30", "Bis 30 Folgen"], ["31-", "Über 30 Folgen"]],
-  anime: [["-12", "Bis 12 Folgen"], ["-30", "Bis 30 Folgen"], ["31-", "Über 30 Folgen"]],
-};
-function medLaenge(kat, umfang) {
-  const wort = { film: "min", serie: "Folgen", anime: "Folgen" }[kat];
-  const m = wort ? String(umfang || "").match(new RegExp("(\\d+)\\s*" + wort)) : null;
-  return m ? parseInt(m[1], 10) : null;
-}
+// Dieselben Filter wie am PC. Genre und Note kommen aus Medien-Meta.md, ein Titel
+// ohne die gefragte Angabe faellt raus. Gleiche Tabelle wie MEDIEN_GENREGRUPPEN
+// in aktionen.py.
+const MED_GENREGRUPPEN = [
+  ["Action", ["action", "abenteuer", "adventure", "shooter", "western", "krieg", "arcade", "mecha", "sports"]],
+  ["Komödie", ["komödie", "comedy", "humorous", "casual"]],
+  ["Drama", ["drama", "liebes", "romance", "love", "historie", "literary", "classics", "slice of life"]],
+  ["Sci-Fi und Fantasy", ["sci-fi", "science fiction", "fantasy", "supernatural", "dystopian", "litrpg", "rpg"]],
+  ["Spannung", ["thriller", "krimi", "horror", "mystery", "psycholog", "suspense", "detective"]],
+  ["Animation und Familie", ["animation", "familie", "children"]],
+];
 function medPlaetze(x) {
   return String(x.plattform || "").split("/").map((s) => s.trim()).filter(Boolean);
 }
 function medGenres(x) {
   const mi = medienMeta(x.kat, x.titel);
-  return mi ? String(mi.genre || "").split(",").map((s) => s.trim()).filter(Boolean) : [];
+  const klein = mi ? String(mi.genre || "").toLowerCase() : "";
+  return MED_GENREGRUPPEN.filter((g) => g[1].some((w) => klein.includes(w))).map((g) => g[0]);
 }
-function medWuerfelFilterHtml(backlog) {
-  const t = medWuerfelKat ? backlog.filter((x) => x.kat === medWuerfelKat) : backlog;
-  const namen = (f) => [...new Set(t.flatMap(f))].sort((a, b) => a.localeCompare(b, "de")).map((n) => [n, n]);
+function medQuellnote(x) {
+  const mi = medienMeta(x.kat, x.titel);
+  const n = mi ? parseFloat(String(mi.note).replace(",", ".")) : NaN;
+  return isNaN(n) ? null : n;
+}
+// Kategorie und Status bestimmen die Auswahl, die anderen Filter engen sie ein.
+function medWuerfelAuswahl(backlog, fertigListen) {
+  const st = medWuerfelFilter.status;
+  const fertig = st === "offen" ? [] : fertigListen.flatMap((l) => l.eintraege.map((t) => ({
+    titel: t.titel, kat: l.key, typ: l.label, zusatz: t.note || "", plattform: "", durch: true,
+  })));
+  const a = (st === "durch" ? [] : backlog).concat(fertig);
+  return medWuerfelKat ? a.filter((x) => x.kat === medWuerfelKat) : a;
+}
+function medWuerfelFilterHtml(backlog, fertigListen) {
+  const t = medWuerfelAuswahl(backlog, fertigListen);
+  const f = medWuerfelFilter;
   const sel = (feld, erst, paare) => paare.length
-    ? "<select class=\"med-wfilter\" data-feld=\"" + feld + "\"><option value=\"\">" + erst + "</option>" +
-      paare.map((p) => "<option value=\"" + esc(p[0]) + "\"" + (medWuerfelFilter[feld] === p[0] ? " selected" : "") +
+    ? "<select class=\"med-wfilter\" data-feld=\"" + feld + "\">" +
+      (erst ? "<option value=\"\">" + erst + "</option>" : "") +
+      paare.map((p) => "<option value=\"" + esc(p[0]) + "\"" + (f[feld] === p[0] ? " selected" : "") +
         ">" + esc(p[1]) + "</option>").join("") + "</select>"
     : "";
+  const gibt = new Set(t.flatMap(medGenres));
+  const plaetze = [...new Set(t.flatMap(medPlaetze))].sort((a, b) => a.localeCompare(b, "de"));
   const felder = [
-    sel("laenge", "Länge egal", MED_LAENGEN[medWuerfelKat] || []),
-    sel("note", "Note egal", [["6", "Note ab 6"], ["7", "Note ab 7"], ["8", "Note ab 8"]]),
-    sel("genre", "Genre egal", namen(medGenres)),
-    sel("plat", "Plattform egal", namen(medPlaetze)),
-  ].filter(Boolean);
+    sel("status", "", [["offen", "Offen"], ["durch", "Durch"], ["beides", "Beides"]]),
+    sel("note", "Note", t.some((x) => medQuellnote(x) !== null) ? [["6", "Ab 6"], ["7", "Ab 7"], ["8", "Ab 8"]] : []),
+    sel("genre", "Genre", MED_GENREGRUPPEN.map((g) => g[0]).filter((n) => gibt.has(n)).map((n) => [n, n])),
+    sel("plat", "Plattform", plaetze.map((n) => [n, n])),
+  ];
   return "<div class=\"medwfilter\">" + felder.join("") + "</div>";
 }
-function medWuerfelTopf(backlog) {
+function medWuerfelTopf(backlog, fertigListen) {
   const f = medWuerfelFilter;
-  return backlog.filter((x) => {
-    if (medWuerfelKat && x.kat !== medWuerfelKat) return false;
-    const mi = medienMeta(x.kat, x.titel) || {};
-    if (f.laenge) {
-      const [von, bis] = f.laenge.split("-").map((z) => parseInt(z, 10));
-      const n = medLaenge(x.kat, mi.umfang);
-      if (n === null || (!isNaN(von) && n < von) || (!isNaN(bis) && n > bis)) return false;
-    }
-    if (f.note && !(parseFloat(mi.note) >= parseFloat(f.note))) return false;
+  return medWuerfelAuswahl(backlog, fertigListen).filter((x) => {
+    if (f.note && !(medQuellnote(x) >= parseFloat(f.note))) return false;
     if (f.genre && !medGenres(x).includes(f.genre)) return false;
     if (f.plat && !medPlaetze(x).includes(f.plat)) return false;
     return true;
@@ -4966,8 +4977,8 @@ const AKTIONEN = {
     const wahl = $("#med-wkat");
     medWuerfelKat = wahl ? wahl.value : medWuerfelKat;
     const m = parseMedienAlle(medienWlTexte());
-    const topf = medWuerfelTopf(m.backlog);
-    if (!topf.length) { toast("Kein offener Titel passt, nimm einen Filter raus", true); return; }
+    const topf = medWuerfelTopf(m.backlog, parseGeschautAlle(medienGlTexte()));
+    if (!topf.length) { toast("Kein Titel passt, nimm einen Filter raus", true); return; }
     medVorschlag = topf[Math.floor(Math.random() * topf.length)];
     renderMedien();
   },
@@ -5038,7 +5049,7 @@ const AKTIONEN = {
   "medien-kat": (el) => {
     medKat = el.dataset.kat;
     medWuerfelKat = medKat;   // der Wuerfel folgt dem Untertab
-    medWuerfelFilter = { laenge: "", genre: "", plat: "", note: "" };
+    medWuerfelFilter = { status: "offen", genre: "", plat: "", note: "" };
     medVorschlag = null;
     try { localStorage.setItem("medkat", medKat); } catch (e) { /* egal */ }
     renderMedien();
