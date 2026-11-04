@@ -2955,7 +2955,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 30;
+const VERSION = 31;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -4184,9 +4184,13 @@ function medJahrHtml(listen) {
       j.jeKat[l.mehrzahl] = (j.jeKat[l.mehrzahl] || 0) + 1;
       j.monate[parseInt(monat, 10) - 1] += 1;
       const mi = medienMeta(l.key, x.titel) || {};
+      // Film direkt, Serie und Anime als Folgen mal Laenge, wie medien_minuten.
       if (l.key === "film") {
         const d = /([0-9]+) *min/.exec(mi.umfang || "");
         if (d) j.minuten += parseInt(d[1], 10);
+      } else if (l.key === "serie" || l.key === "anime") {
+        const d = /([0-9]+) Folgen, je ([0-9]+) min/.exec(mi.umfang || "");
+        if (d) j.minuten += parseInt(d[1], 10) * parseInt(d[2], 10);
       }
       for (const g of medGenres({ kat: l.key, titel: x.titel })) j.genres[g] = (j.genres[g] || 0) + 1;
       const bew = medienBewertung(x.note);
@@ -4204,7 +4208,7 @@ function medJahrHtml(listen) {
       "\" data-aktion=\"med-jahr\" data-jahr=\"" + n + "\">" + n + "</button>").join("") + "</div>");
   }
   const kacheln = [[String(j.anzahl), "Titel durch in " + akt]];
-  if (j.minuten) kacheln.push([String(Math.round(j.minuten / 60)), "Stunden Film"]);
+  if (j.minuten) kacheln.push([String(Math.round(j.minuten / 60)), "Stunden geschaut"]);
   if (j.noten.length) kacheln.push([(j.noten.reduce((a, c) => a + c, 0) / j.noten.length).toFixed(1), "deine Durchschnittsnote"]);
   b.push("<div class=\"medjahrkacheln\">" + kacheln.map((k) => "<div><b>" + k[0] + "</b><span class=\"hilfetext\">" + esc(k[1]) + "</span></div>").join("") + "</div>");
   b.push("<div class=\"hilfetext\">" + esc(Object.entries(j.jeKat).sort((a, c) => c[1] - a[1]).map((k) => k[1] + " " + (k[1] === 1 ? (MEDIEN_KAT.find((m) => m[4] === k[0]) || [0, k[0]])[1] : k[0])).join(", ")) + "</div>");
