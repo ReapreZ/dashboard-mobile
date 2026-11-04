@@ -400,6 +400,16 @@ nav.tabs button.aktiv { color: var(--akzent); }
 .standzeile { text-align: center; color: var(--leise); font-size: 12px; margin: 4px 0 10px; }
 .hilfetext { color: var(--leise); font-size: 13.5px; }
 .medfiltweg { display: none !important; }
+#rezsort[hidden] { display: none; }
+.rezpasst { color: var(--akzent-dunkel); margin-bottom: 6px; }
+.medjahrkacheln { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 6px; }
+.medjahrkacheln b { display: block; font-size: 24px; line-height: 1.15; }
+.medjahrbalken { display: flex; align-items: center; gap: 7px; font-size: 13px; margin-bottom: 5px; }
+.medjahrbalken span { flex: 0 0 122px; }
+.medjahrbalken i { display: block; height: 9px; background: var(--akzent-dunkel); border-radius: 3px; max-width: calc(100% - 155px); }
+.medjahrmonate { display: flex; align-items: flex-end; gap: 3px; height: 82px; }
+.medjahrmonate div { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 3px; font-size: 9.5px; color: var(--leise); }
+.medjahrmonate i { display: block; width: 100%; background: var(--akzent-dunkel); border-radius: 2px; min-height: 1px; }
 .medwfilter { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 8px; }
 /* Offen und Durch klappen ueber die Kopfzeile. Sie bleibt beim Scrollen stehen,
    damit man auch mitten in einer langen Liste zuklappen kann. */
@@ -2945,7 +2955,7 @@ function sheetZu() {
 
 // ------------------------------------------------- Einstellungen, Ablage
 
-const VERSION = 29;
+const VERSION = 30;
 
 const CFG_KEY = "dashmobil-cfg";
 const CACHE_KEY = "dashmobil-cache";
@@ -3777,6 +3787,8 @@ let medDurchAlle = false;   // Durch zeigt erst 12, ein Chip klappt alles auf
 let medSuche = "";         // Text in der Leiste, filtert die drei Listen
 let medZu = {};            // zugeklappte Listen, gilt fuer alle Kategorien
 try { medZu = JSON.parse(localStorage.getItem("medzu") || "{}") || {}; } catch (e) { medZu = {}; }
+if (medZu.jahr === undefined) medZu.jahr = true;   // Jahresrueckblick startet zugeklappt
+let medJahr = "";          // gewaehltes Jahr, leer heisst das neueste
 const MEDIEN_SORT = [["zeit", "Hinzugefügt"], ["az", "Titel"], ["bew", "Bewertung"]];
 const MEDIEN_BEW_RE = /(\d+(?:[.,]\d+)?)\s*\/\s*10\b/;
 
@@ -4060,6 +4072,7 @@ function renderMedien() {
     b.push("</div></div>");
   }
 
+  b.push(medJahrHtml(durch));
   $("#blatt-medien").innerHTML = b.join("");
   $("#med-wkat").addEventListener("change", (ev) => {
     medWuerfelKat = ev.target.value;
@@ -4158,6 +4171,66 @@ function medWuerfelTopf(backlog, fertigListen) {
     return true;
   });
 }
+// Gleiche Rechnung wie medien_jahresrueckblick in aktionen.py.
+function medJahrHtml(listen) {
+  const jahre = {};
+  let ohne = 0;
+  for (const l of listen) {
+    for (const x of l.eintraege) {
+      if (!x.fertig) { ohne += 1; continue; }
+      const [jahr, monat] = String(x.fertig).split("-");
+      const j = jahre[jahr] || (jahre[jahr] = { anzahl: 0, jeKat: {}, minuten: 0, noten: [], top: [], genres: {}, monate: new Array(12).fill(0) });
+      j.anzahl += 1;
+      j.jeKat[l.mehrzahl] = (j.jeKat[l.mehrzahl] || 0) + 1;
+      j.monate[parseInt(monat, 10) - 1] += 1;
+      const mi = medienMeta(l.key, x.titel) || {};
+      if (l.key === "film") {
+        const d = /([0-9]+) *min/.exec(mi.umfang || "");
+        if (d) j.minuten += parseInt(d[1], 10);
+      }
+      for (const g of medGenres({ kat: l.key, titel: x.titel })) j.genres[g] = (j.genres[g] || 0) + 1;
+      const bew = medienBewertung(x.note);
+      if (bew !== null) { j.noten.push(bew); j.top.push([bew, x.titel, l.label]); }
+    }
+  }
+  const namen = Object.keys(jahre).sort().reverse();
+  if (!namen.length) return "";
+  const akt = jahre[medJahr] ? medJahr : namen[0];
+  const j = jahre[akt];
+  const b = ["<div class=\"karte\" id=\"med-jahrkarte\">" + medKlappKopf("jahr") +
+    "Jahresrückblick <span class=\"pfeil\">▼</span></h3><div data-medklapp=\"jahr\">"];
+  if (namen.length > 1) {
+    b.push("<div class=\"chips\">" + namen.map((n) => "<button class=\"chip" + (n === akt ? " an" : "") +
+      "\" data-aktion=\"med-jahr\" data-jahr=\"" + n + "\">" + n + "</button>").join("") + "</div>");
+  }
+  const kacheln = [[String(j.anzahl), "Titel durch in " + akt]];
+  if (j.minuten) kacheln.push([String(Math.round(j.minuten / 60)), "Stunden Film"]);
+  if (j.noten.length) kacheln.push([(j.noten.reduce((a, c) => a + c, 0) / j.noten.length).toFixed(1), "deine Durchschnittsnote"]);
+  b.push("<div class=\"medjahrkacheln\">" + kacheln.map((k) => "<div><b>" + k[0] + "</b><span class=\"hilfetext\">" + esc(k[1]) + "</span></div>").join("") + "</div>");
+  b.push("<div class=\"hilfetext\">" + esc(Object.entries(j.jeKat).sort((a, c) => c[1] - a[1]).map((k) => k[1] + " " + (k[1] === 1 ? (MEDIEN_KAT.find((m) => m[4] === k[0]) || [0, k[0]])[1] : k[0])).join(", ")) + "</div>");
+  if (j.top.length) {
+    b.push("<div class=\"sektionstitel\" style=\"margin-top:12px\">Deine Top 5</div>");
+    j.top.slice().sort((a, c) => c[0] - a[0]).slice(0, 5).forEach((t, i) => {
+      b.push("<div class=\"kopf\" style=\"margin-bottom:4px\"><span>" + (i + 1) + ". " + esc(t[1]) + " <span class=\"zusatz\">" + esc(t[2]) +
+        "</span></span><span class=\"medpill\">" + t[0] + "/10</span></div>");
+    });
+  }
+  const genres = Object.entries(j.genres).sort((a, c) => c[1] - a[1]);
+  if (genres.length) {
+    const hoch = genres[0][1];
+    b.push("<div class=\"sektionstitel\" style=\"margin-top:12px\">Lieblingsgenres</div>");
+    for (const g of genres) {
+      b.push("<div class=\"medjahrbalken\"><span>" + esc(g[0]) + "</span><i style=\"width:" + Math.round(g[1] * 100 / hoch) + "%\"></i><b>" + g[1] + "</b></div>");
+    }
+  }
+  const mh = Math.max(...j.monate) || 1;
+  const mon = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+  b.push("<div class=\"sektionstitel\" style=\"margin-top:12px\">Nach Monat</div><div class=\"medjahrmonate\">" +
+    j.monate.map((n, i) => "<div><i style=\"height:" + Math.round(n * 60 / mh) + "px\"></i><span>" + mon[i] + "</span></div>").join("") + "</div>");
+  if (ohne) b.push("<div class=\"hilfetext\" style=\"margin-top:10px\">" + ohne + " ältere Titel haben kein Fertig-Datum und zählen hier nicht mit.</div>");
+  b.push("</div></div>");
+  return b.join("");
+}
 function medKlappKopf(sek) {
   return "<h3 class=\"medklappkopf\" role=\"button\" data-aktion=\"medien-klapp\" data-sek=\"" + sek + "\">";
 }
@@ -4200,6 +4273,8 @@ function medFiltern() {
   if (chip) chip.classList.toggle("medfiltweg", !!q);
   // Der Wuerfel schiebt die Treffer sonst hinter die Tastatur.
   $("#med-wuerfelkarte").classList.toggle("medfiltweg", !!q);
+  const jahrKarte = $("#med-jahrkarte");
+  if (jahrKarte) jahrKarte.classList.toggle("medfiltweg", !!q);
 }
 
 function medienFertigSheet(kat, titel) {
@@ -4242,6 +4317,7 @@ function medienBearbeitenSheet(kat, titel, zusatz, dabei, plattform) {
 
 let rezSuche = "";
 let rezFilter = "";
+let rezArt = "passt";   // Sortierung, solange etwas in der Suche steht
 
 function alleRezepte() {
   const out = [];
@@ -4311,8 +4387,10 @@ function renderRezepte() {
   // beim Tippen nicht zuklappt.
   b.push("<div class=\"karte\"><h3>Rezepte <span class=\"zusatz\" id=\"rezzahl\">" +
     rezepte.length + "</span></h3>");
-  b.push("<input type=\"text\" id=\"rezsuche\" placeholder=\"Suchen in Titel, Tags und Zutaten\" " +
+  b.push("<input type=\"text\" id=\"rezsuche\" placeholder=\"Suchen oder was du da hast: Hähnchen, Reis\" " +
     "autocomplete=\"off\" value=\"" + esc(rezSuche) + "\">");
+  b.push("<div class=\"chips\" id=\"rezsort\" hidden>" + [["passt", "Passt am besten"], ["protein", "Meiste Protein"], ["dauer", "Schnellste"]].map((x) =>
+    "<button class=\"chip" + (rezArt === x[0] ? " an" : "") + "\" data-aktion=\"rez-sort\" data-sort=\"" + x[0] + "\">" + x[1] + "</button>").join("") + "</div>");
   const zaehler = {};
   for (const r of rezepte) for (const k of r.kategorien) zaehler[k] = (zaehler[k] || 0) + 1;
   b.push("<div class=\"chips\" id=\"rezfilter\">");
@@ -4332,11 +4410,15 @@ function renderRezepte() {
       "Einmal oben aktualisieren, oder leg unten eins an.</div></div>");
   }
 
-  for (const r of rezepte) {
+  b.push("<div id=\"rezliste\">");
+  for (let rezPos = 0; rezPos < rezepte.length; rezPos++) {
+    const r = rezepte[rezPos];
     const such = [r.titel].concat(r.tags, r.zutaten,
       r.kategorien.map((k) => KAT_LABEL[k])).join(" ").toLowerCase();
     b.push("<article class=\"karte rezkarte\" data-kat=\"" + esc(r.kategorien.join(" ")) +
-      "\" data-suche=\"" + esc(such) + "\">");
+      "\" data-suche=\"" + esc(such) + "\" data-pos=\"" + rezPos + "\" data-zutaten=\"" + esc(r.zutaten.join("|")) +
+      "\" data-naehr=\"" + esc(r.naehrwerte) + "\" data-dauer=\"" + esc(r.dauer) + "\">");
+    b.push("<div class=\"hilfetext rezpasst\" hidden></div>");
     // Zugeklappt zeigt die Karte nur Titel, Naehrwerte, Dauer und Tags.
     // Alles andere kommt erst beim Auftippen.
     const kopf = [];
@@ -4380,6 +4462,7 @@ function renderRezepte() {
     b.push("</details>");
     b.push("</article>");
   }
+  b.push("</div>");
 
   // Video-Warteschlange
   b.push("<div class=\"karte\"><h3>Rezept aus einem Video</h3>" +
@@ -4413,16 +4496,64 @@ function renderRezepte() {
 
 // Blendet Karten aus statt neu zu rendern, sonst verliert das Suchfeld
 // bei jedem Buchstaben den Fokus.
+function rezNorm(s){return String(s||'').toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss');}
+function rezTeile(q){return rezNorm(q).split(/,|;| und /).map(function(t){return t.trim();}).filter(Boolean);}
+var REZ_VORRAT=['salz','pfeffer','wasser','oel','gewuerz','kraeuter','paprikapulver','knoblauchpulver','chili','zimt','essig'];
+function rezZutatName(z){return String(z).replace(/^[^:]*: +/,'').replace(/^[0-9.,/ -]+/,'').replace(/^(g|kg|ml|l|el|tl|stk|stück|prise|prisen|dose|dosen|packung|pck)[ .]+/i,'').trim();}
+function rezPruefen(teile,such,zutaten){
+  var s=rezNorm(such);
+  return {treffer:teile.filter(function(t){return s.indexOf(t)>=0;}),
+    fehlt:zutaten.filter(function(z){
+      var n=rezNorm(z);
+      if(!n.trim()||n.trim().slice(-1)===':')return false;
+      return !teile.some(function(t){return n.indexOf(t)>=0;})
+        &&!REZ_VORRAT.some(function(v){return n.indexOf(v)>=0;});
+    }).map(rezZutatName)};
+}
+function rezPasstText(p,teile){
+  var a='Passt: '+p.treffer.length+' von '+teile.length;
+  if(!p.fehlt.length)return a+' · Du hast alles';
+  var zu=p.fehlt.slice(0,4).join(', ');
+  return a+' · Fehlt: '+zu+(p.fehlt.length>4?' und '+(p.fehlt.length-4)+' weitere':'');
+}
+function rezProtein(t){var m=/([0-9]+) *g *eiwei/i.exec(t||'');return m?parseInt(m[1],10):null;}
+function rezMinuten(t){var m=/([0-9]+)/.exec(t||'');if(!m)return null;
+  return parseInt(m[1],10)*(/(std|stunde| h)/i.test(t)?60:1);}
+function rezVergleich(art){
+  return function(a,b){
+    var r=0;
+    if(art==='protein'||art==='dauer'){
+      var x=art==='protein'?a.protein:a.minuten,y=art==='protein'?b.protein:b.minuten;
+      if((x===null)!==(y===null))return x===null?1:-1;
+      if(x!==null)r=art==='protein'?y-x:x-y;
+    }
+    return r||(b.p.treffer.length-a.p.treffer.length)||(a.p.fehlt.length-b.p.fehlt.length)||(a.pos-b.pos);
+  };
+}
 function rezFiltern() {
-  const q = rezSuche.trim().toLowerCase();
+  const teile = rezTeile(rezSuche);
   let sichtbar = 0;
+  const liste = [];
   document.querySelectorAll("#blatt-rezepte .rezkarte").forEach((el) => {
     const kats = " " + el.dataset.kat + " ";
+    const p = rezPruefen(teile, el.dataset.suche, (el.dataset.zutaten || "").split("|"));
     const passt = (!rezFilter || kats.includes(" " + rezFilter + " "))
-      && (!q || el.dataset.suche.includes(q));
+      && (!teile.length || p.treffer.length > 0);
     el.style.display = passt ? "" : "none";
     if (passt) sichtbar += 1;
+    const info = el.querySelector(".rezpasst");
+    info.textContent = teile.length && passt ? rezPasstText(p, teile) : "";
+    info.hidden = !(teile.length && passt);
+    liste.push({ el, p, pos: parseInt(el.dataset.pos, 10) || 0,
+      protein: rezProtein(el.dataset.naehr), minuten: rezMinuten(el.dataset.dauer) });
   });
+  const rahmen = $("#rezliste");
+  if (rahmen) {
+    liste.sort(teile.length ? rezVergleich(rezArt) : (a, b) => a.pos - b.pos);
+    liste.forEach((x) => rahmen.appendChild(x.el));
+  }
+  const chips = $("#rezsort");
+  if (chips) chips.hidden = !teile.length;
   const zahl = $("#rezzahl");
   if (zahl) zahl.textContent = sichtbar + (rezSuche.trim() || rezFilter ? " von " + document.querySelectorAll("#blatt-rezepte .rezkarte").length : "");
 }
@@ -5056,6 +5187,15 @@ const AKTIONEN = {
     window.scrollTo(0, 0);
   },
 
+  "rez-sort": (el) => {
+    rezArt = el.dataset.sort;
+    document.querySelectorAll("#rezsort .chip").forEach((x) => x.classList.toggle("an", x === el));
+    rezFiltern();
+  },
+  "med-jahr": (el) => {
+    medJahr = el.dataset.jahr;
+    renderMedien();
+  },
   "rez-filter": (el) => {
     rezFilter = el.dataset.filter;
     document.querySelectorAll("#rezfilter .chip").forEach((x) =>
